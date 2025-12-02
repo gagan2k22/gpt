@@ -120,17 +120,7 @@ const createLineItem = async (req, res) => {
             });
         }
 
-        // Check if UID already exists
-        const existingItem = await prisma.lineItem.findUnique({
-            where: { uid }
-        });
-
-        if (existingItem) {
-            return res.status(400).json({
-                message: 'UID already exists. Please use a unique UID.',
-                existingUID: uid
-            });
-        }
+        // UID uniqueness check removed to allow multiple PO entities to share the same UID
 
         // Verify foreign key references exist (parallel queries for better performance)
         const [vendor, tower, budgetHead] = await Promise.all([

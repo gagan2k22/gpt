@@ -5,18 +5,21 @@ import {
     Switch, FormControlLabel, CircularProgress, Chip, TableHead, TableRow, Dialog, DialogTitle, DialogContent,
     Select, OutlinedInput, InputLabel, FormControl, Checkbox, ListItemText
 } from '@mui/material';
-import { Add, Download, Close, Upload, FilterList, Clear, FileDownload } from '@mui/icons-material';
+import { Add, Download, Close, Upload, FilterList, Clear, FileDownload, Edit } from '@mui/icons-material';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 import { excelTableStyles } from '../styles/excelTableStyles';
+import { useIsAdmin } from '../hooks/usePermissions';
 
 const BudgetList = () => {
     const [budgets, setBudgets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [openDialog, setOpenDialog] = useState(false);
+    const [editingItem, setEditingItem] = useState(null); // For editing
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
     const [openManageFYDialog, setOpenManageFYDialog] = useState(false);
     const [allFiscalYears, setAllFiscalYears] = useState([]); // For admin management
+    const isAdmin = useIsAdmin(); // Check if user is admin
 
     // Fiscal Year Selection
     const [selectedFiscalYears, setSelectedFiscalYears] = useState(['FY25', 'FY26']);
@@ -75,6 +78,11 @@ const BudgetList = () => {
         total_cost: '',
         fiscal_year: '',
         remarks: ''
+    });
+
+    // Form validation errors
+    const [formErrors, setFormErrors] = useState({
+        dateError: ''
     });
 
     // AbortController for cleanup
@@ -164,24 +172,61 @@ const BudgetList = () => {
                 newData.total_cost = (unitCost * quantity).toFixed(2);
             }
 
+            // Validate dates
+            if (name === 'service_start_date' || name === 'service_end_date') {
+                const startDate = name === 'service_start_date' ? value : prev.service_start_date;
+                const endDate = name === 'service_end_date' ? value : prev.service_end_date;
+
+                if (startDate && endDate) {
+                    if (new Date(startDate) >= new Date(endDate)) {
+                        setFormErrors(prevErrors => ({
+                            ...prevErrors,
+                            dateError: 'Service start date must be before end date'
+                        }));
+                    } else {
+                        setFormErrors(prevErrors => ({
+                            ...prevErrors,
+                            dateError: ''
+                        }));
+                    }
+                }
+            }
+
             return newData;
         });
     }, []);
 
     const handleSubmit = async () => {
+        // Validate dates before submission
+        if (formErrors.dateError) {
+            showSnackbar('Please fix the date error before submitting', 'error');
+            return;
+        }
+
         try {
             const token = localStorage.getItem('token');
-            await axios.post('/api/line-items', formData, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
 
-            showSnackbar('Line item added successfully!', 'success');
+            if (editingItem) {
+                // Update existing line item
+                await axios.put(`/api/line-items/${editingItem.id}`, formData, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                showSnackbar('Line item updated successfully!', 'success');
+            } else {
+                // Create new line item
+                await axios.post('/api/line-items', formData, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                showSnackbar('Line item added successfully!', 'success');
+            }
+
             setOpenDialog(false);
+            setEditingItem(null);
             resetForm();
             fetchBudgets();
         } catch (error) {
-            console.error('Error creating line item:', error);
-            showSnackbar(error.response?.data?.message || 'Error creating line item', 'error');
+            console.error('Error saving line item:', error);
+            showSnackbar(error.response?.data?.message || 'Error saving line item', 'error');
         }
     };
 
@@ -203,6 +248,9 @@ const BudgetList = () => {
             total_cost: '',
             fiscal_year: '',
             remarks: ''
+        });
+        setFormErrors({
+            dateError: ''
         });
     }, []);
 
@@ -361,6 +409,8 @@ const BudgetList = () => {
                     const yearNum = fy.replace('FY', '');
                     row[`${fy} Budget`] = budget[`fy${yearNum.toLowerCase()}_budget`] || 0;
                     row[`${fy} Actuals`] = budget[`fy${yearNum.toLowerCase()}_actuals`] || 0;
+                    row[`${fy} Total Budget (UID)`] = budget[`uid_total_fy${yearNum.toLowerCase()}_budget`] || 0;
+                    row[`${fy} Total Actuals (UID)`] = budget[`uid_total_fy${yearNum.toLowerCase()}_actuals`] || 0;
                 });
 
                 row['Remarks'] = budget.remarks || '-';
@@ -469,770 +519,595 @@ const BudgetList = () => {
                     <Table stickyHeader sx={excelTableStyles.table}>
                         <TableHead>
                             <TableRow>
-                                <TableCell sx={{ ...excelTableStyles.headerCell, width: '120px' }}>UID</TableCell>
-                                <TableCell sx={{ ...excelTableStyles.headerCell, width: '180px' }}>Vendor</TableCell>
-                                <TableCell sx={{ ...excelTableStyles.headerCell, width: '250px' }}>Service Description</TableCell>
-                                <TableCell sx={{ ...excelTableStyles.headerCell, width: '100px' }}>Start Date</TableCell>
-                                <TableCell sx={{ ...excelTableStyles.headerCell, width: '100px' }}>End Date</TableCell>
-                                <TableCell sx={{ ...excelTableStyles.headerCell, width: '140px' }}>Budget Head</TableCell>
-                                <TableCell sx={{ ...excelTableStyles.headerCell, width: '100px' }}>Tower</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '120px' }}>UID</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '100px' }}>Parent UID</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '150px' }}>Vendor</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '200px' }}>Service Description</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '90px' }}>Start Date</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '90px' }}>End Date</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '100px' }}>Renewal/PO</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '150px' }}>Budget Head</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '100px' }}>Tower</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '120px' }}>Contract/PO</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '120px' }}>PO Entity</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '120px' }}>Allocation Basis</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '120px' }}>Service Type</TableCell>
                                 {selectedFiscalYears.includes('FY25') && (
                                     <>
-                                        <TableCell align="right" sx={{ ...excelTableStyles.headerCell, width: '110px' }}>FY25 Budget</TableCell>
-                                        <TableCell align="right" sx={{ ...excelTableStyles.headerCell, width: '110px' }}>FY25 Actuals</TableCell>
+                                        <TableCell align="right" sx={{ ...excelTableStyles.headerCell, minWidth: '100px' }}>FY25 Budget</TableCell>
+                                        <TableCell align="right" sx={{ ...excelTableStyles.headerCell, minWidth: '100px' }}>FY25 Actuals</TableCell>
+                                        <TableCell align="right" sx={{ ...excelTableStyles.headerCell, minWidth: '100px', bgcolor: '#e3f2fd' }}>FY25 Total (UID)</TableCell>
+                                        <TableCell align="right" sx={{ ...excelTableStyles.headerCell, minWidth: '100px', bgcolor: '#e3f2fd' }}>FY25 Actuals (UID)</TableCell>
                                     </>
                                 )}
                                 {selectedFiscalYears.includes('FY26') && (
                                     <>
-                                        <TableCell align="right" sx={{ ...excelTableStyles.headerCell, width: '110px' }}>FY26 Budget</TableCell>
-                                        <TableCell align="right" sx={{ ...excelTableStyles.headerCell, width: '110px' }}>FY26 Actuals</TableCell>
+                                        <TableCell align="right" sx={{ ...excelTableStyles.headerCell, minWidth: '100px' }}>FY26 Budget</TableCell>
+                                        <TableCell align="right" sx={{ ...excelTableStyles.headerCell, minWidth: '100px' }}>FY26 Actuals</TableCell>
+                                        <TableCell align="right" sx={{ ...excelTableStyles.headerCell, minWidth: '100px', bgcolor: '#e3f2fd' }}>FY26 Total (UID)</TableCell>
+                                        <TableCell align="right" sx={{ ...excelTableStyles.headerCell, minWidth: '100px', bgcolor: '#e3f2fd' }}>FY26 Actuals (UID)</TableCell>
                                     </>
                                 )}
                                 {selectedFiscalYears.includes('FY27') && (
                                     <>
-                                        <TableCell align="right" sx={{ ...excelTableStyles.headerCell, width: '110px' }}>FY27 Budget</TableCell>
-                                        <TableCell align="right" sx={{ ...excelTableStyles.headerCell, width: '110px' }}>FY27 Actuals</TableCell>
+                                        <TableCell align="right" sx={{ ...excelTableStyles.headerCell, minWidth: '100px' }}>FY27 Budget</TableCell>
+                                        <TableCell align="right" sx={{ ...excelTableStyles.headerCell, minWidth: '100px' }}>FY27 Actuals</TableCell>
+                                        <TableCell align="right" sx={{ ...excelTableStyles.headerCell, minWidth: '100px', bgcolor: '#e3f2fd' }}>FY27 Total (UID)</TableCell>
+                                        <TableCell align="right" sx={{ ...excelTableStyles.headerCell, minWidth: '100px', bgcolor: '#e3f2fd' }}>FY27 Actuals (UID)</TableCell>
                                     </>
                                 )}
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '150px' }}>Remarks</TableCell>
+                                {isAdmin && <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '80px' }}>Actions</TableCell>}
                             </TableRow>
                             {/* Filter Row */}
                             <TableRow>
-                                {/* UID Filter */}
                                 <TableCell sx={excelTableStyles.filterCell}>
-                                    <TextField
-                                        size="small"
-                                        placeholder="Filter..."
-                                        value={filters.uid}
-                                        onChange={(e) => handleFilterChange('uid', e.target.value)}
-                                        fullWidth
-                                        sx={excelTableStyles.filterInput}
-                                    />
+                                    <TextField size="small" placeholder="Filter..." value={filters.uid} onChange={(e) => handleFilterChange('uid', e.target.value)} fullWidth sx={excelTableStyles.filterInput} />
                                 </TableCell>
-                                        }}
-                                    />
-                            </TableCell>
-                            {/* Parent UID Filter */}
-                            <TableCell sx={{ py: 1 }}>
-                                <TextField
-                                    size="small"
-                                    placeholder="Filter..."
-                                    value={filters.parent_uid}
-                                    onChange={(e) => handleFilterChange('parent_uid', e.target.value)}
-                                    fullWidth
-                                    InputProps={{
-                                        startAdornment: (
-                                            <InputAdornment position="start">
-                                                <FilterList fontSize="small" />
-                                            </InputAdornment>
-                                        ),
-                                    }}
-                                />
-                            </TableCell>
-                            {/* Vendor Filter */}
-                            <TableCell sx={{ py: 1 }}>
-                                <TextField
-                                    size="small"
-                                    placeholder="Filter vendor..."
-                                    value={filters.vendor_name}
-                                    onChange={(e) => handleFilterChange('vendor_name', e.target.value)}
-                                    fullWidth
-                                    InputProps={{
-                                        startAdornment: (
-                                            <InputAdornment position="start">
-                                                <FilterList fontSize="small" />
-                                            </InputAdornment>
-                                        ),
-                                    }}
-                                />
-                            </TableCell>
-                            {/* Service Description Filter */}
-                            <TableCell sx={{ py: 1 }}>
-                                <TextField
-                                    size="small"
-                                    placeholder="Filter description..."
-                                    value={filters.service_description}
-                                    onChange={(e) => handleFilterChange('service_description', e.target.value)}
-                                    fullWidth
-                                    InputProps={{
-                                        startAdornment: (
-                                            <InputAdornment position="start">
-                                                <FilterList fontSize="small" />
-                                            </InputAdornment>
-                                        ),
-                                    }}
-                                />
-                            </TableCell>
-                            {/* Start Date Filter */}
-                            <TableCell sx={{ py: 1 }}>
-                                <TextField
-                                    size="small"
-                                    type="date"
-                                    value={filters.start_date}
-                                    onChange={(e) => handleFilterChange('start_date', e.target.value)}
-                                    fullWidth
-                                    InputLabelProps={{ shrink: true }}
-                                />
-                            </TableCell>
-                            {/* End Date Filter */}
-                            <TableCell sx={{ py: 1 }}>
-                                <TextField
-                                    size="small"
-                                    type="date"
-                                    value={filters.end_date}
-                                    onChange={(e) => handleFilterChange('end_date', e.target.value)}
-                                    fullWidth
-                                    InputLabelProps={{ shrink: true }}
-                                />
-                            </TableCell>
-                            {/* Renewal/PO Filter */}
-                            <TableCell sx={{ py: 1 }}>
-                                <TextField
-                                    size="small"
-                                    select
-                                    value={filters.is_renewal}
-                                    onChange={(e) => handleFilterChange('is_renewal', e.target.value)}
-                                    fullWidth
-                                >
-                                    <MenuItem value="">All</MenuItem>
-                                    <MenuItem value="true">Renewal</MenuItem>
-                                    <MenuItem value="false">New PO</MenuItem>
-                                </TextField>
-                            </TableCell>
-                            {/* Budget Head Filter */}
-                            <TableCell sx={{ py: 1 }}>
-                                <TextField
-                                    size="small"
-                                    placeholder="Filter..."
-                                    value={filters.budget_head_name}
-                                    onChange={(e) => handleFilterChange('budget_head_name', e.target.value)}
-                                    fullWidth
-                                    InputProps={{
-                                        startAdornment: (
-                                            <InputAdornment position="start">
-                                                <FilterList fontSize="small" />
-                                            </InputAdornment>
-                                        ),
-                                    }}
-                                />
-                            </TableCell>
-                            {/* Tower Filter */}
-                            <TableCell sx={{ py: 1 }}>
-                                <TextField
-                                    size="small"
-                                    placeholder="Filter..."
-                                    value={filters.tower_name}
-                                    onChange={(e) => handleFilterChange('tower_name', e.target.value)}
-                                    fullWidth
-                                    InputProps={{
-                                        startAdornment: (
-                                            <InputAdornment position="start">
-                                                <FilterList fontSize="small" />
-                                            </InputAdornment>
-                                        ),
-                                    }}
-                                />
-                            </TableCell>
-                            {/* Contract/PO Filter */}
-                            <TableCell sx={{ py: 1 }}>
-                                <TextField
-                                    size="small"
-                                    placeholder="Filter..."
-                                    value={filters.contract_id}
-                                    onChange={(e) => handleFilterChange('contract_id', e.target.value)}
-                                    fullWidth
-                                    InputProps={{
-                                        startAdornment: (
-                                            <InputAdornment position="start">
-                                                <FilterList fontSize="small" />
-                                            </InputAdornment>
-                                        ),
-                                    }}
-                                />
-                            </TableCell>
-                            {/* PO Entity Filter */}
-                            <TableCell sx={{ py: 1 }}>
-                                <TextField
-                                    size="small"
-                                    placeholder="Filter..."
-                                    value={filters.po_entity_name}
-                                    onChange={(e) => handleFilterChange('po_entity_name', e.target.value)}
-                                    fullWidth
-                                    InputProps={{
-                                        startAdornment: (
-                                            <InputAdornment position="start">
-                                                <FilterList fontSize="small" />
-                                            </InputAdornment>
-                                        ),
-                                    }}
-                                />
-                            </TableCell>
-                            {/* Allocation Basis Filter */}
-                            <TableCell sx={{ py: 1 }}>
-                                <TextField
-                                    size="small"
-                                    placeholder="Filter..."
-                                    value={filters.allocation_basis_name}
-                                    onChange={(e) => handleFilterChange('allocation_basis_name', e.target.value)}
-                                    fullWidth
-                                    InputProps={{
-                                        startAdornment: (
-                                            <InputAdornment position="start">
-                                                <FilterList fontSize="small" />
-                                            </InputAdornment>
-                                        ),
-                                    }}
-                                />
-                            </TableCell>
-                            {/* Service Type Filter */}
-                            <TableCell sx={{ py: 1 }}>
-                                <TextField
-                                    size="small"
-                                    placeholder="Filter..."
-                                    value={filters.service_type_name}
-                                    onChange={(e) => handleFilterChange('service_type_name', e.target.value)}
-                                    fullWidth
-                                    InputProps={{
-                                        startAdornment: (
-                                            <InputAdornment position="start">
-                                                <FilterList fontSize="small" />
-                                            </InputAdornment>
-                                        ),
-                                    }}
-                                />
-                            </TableCell>
-                            {/* FY25 Budget Filter */}
-                            {selectedFiscalYears.includes('FY25') && (
-                                <>
-                                    <TableCell sx={{ py: 1 }}>
-                                        <Box sx={{ display: 'flex', gap: 0.5, flexDirection: 'column' }}>
-                                            <TextField
-                                                size="small"
-                                                type="number"
-                                                placeholder="Min"
-                                                value={filters.fy25_budget_min}
-                                                onChange={(e) => handleFilterChange('fy25_budget_min', e.target.value)}
-                                                fullWidth
-                                            />
-                                            <TextField
-                                                size="small"
-                                                type="number"
-                                                placeholder="Max"
-                                                value={filters.fy25_budget_max}
-                                                onChange={(e) => handleFilterChange('fy25_budget_max', e.target.value)}
-                                                fullWidth
-                                            />
-                                        </Box>
-                                    </TableCell>
-                                    {/* FY25 Actuals Filter */}
-                                    <TableCell sx={{ py: 1 }}>
-                                        <Box sx={{ display: 'flex', gap: 0.5, flexDirection: 'column' }}>
-                                            <TextField
-                                                size="small"
-                                                type="number"
-                                                placeholder="Min"
-                                                value={filters.fy25_actuals_min}
-                                                onChange={(e) => handleFilterChange('fy25_actuals_min', e.target.value)}
-                                                fullWidth
-                                            />
-                                            <TextField
-                                                size="small"
-                                                type="number"
-                                                placeholder="Max"
-                                                value={filters.fy25_actuals_max}
-                                                onChange={(e) => handleFilterChange('fy25_actuals_max', e.target.value)}
-                                                fullWidth
-                                            />
-                                        </Box>
-                                    </TableCell>
-                                </>
-                            )}
-                            {/* FY26 Budget Filter */}
-                            {selectedFiscalYears.includes('FY26') && (
-                                <>
-                                    <TableCell sx={{ py: 1 }}>
-                                        <Box sx={{ display: 'flex', gap: 0.5, flexDirection: 'column' }}>
-                                            <TextField
-                                                size="small"
-                                                type="number"
-                                                placeholder="Min"
-                                                value={filters.fy26_budget_min}
-                                                onChange={(e) => handleFilterChange('fy26_budget_min', e.target.value)}
-                                                fullWidth
-                                            />
-                                            <TextField
-                                                size="small"
-                                                type="number"
-                                                placeholder="Max"
-                                                value={filters.fy26_budget_max}
-                                                onChange={(e) => handleFilterChange('fy26_budget_max', e.target.value)}
-                                                fullWidth
-                                            />
-                                        </Box>
-                                    </TableCell>
-                                    {/* FY26 Actuals Filter */}
-                                    <TableCell sx={{ py: 1 }}>
-                                        <Box sx={{ display: 'flex', gap: 0.5, flexDirection: 'column' }}>
-                                            <TextField
-                                                size="small"
-                                                type="number"
-                                                placeholder="Min"
-                                                value={filters.fy26_actuals_min}
-                                                onChange={(e) => handleFilterChange('fy26_actuals_min', e.target.value)}
-                                                fullWidth
-                                            />
-                                            <TextField
-                                                size="small"
-                                                type="number"
-                                                placeholder="Max"
-                                                value={filters.fy26_actuals_max}
-                                                onChange={(e) => handleFilterChange('fy26_actuals_max', e.target.value)}
-                                                fullWidth
-                                            />
-                                        </Box>
-                                    </TableCell>
-                                </>
-                            )}
-                            {/* FY27 Filters - Placeholder for future data */}
-                            {selectedFiscalYears.includes('FY27') && (
-                                <>
-                                    <TableCell sx={{ py: 1 }}>
-                                        <Box sx={{ display: 'flex', gap: 0.5, flexDirection: 'column' }}>
-                                            <TextField size="small" type="number" placeholder="Min" fullWidth disabled />
-                                            <TextField size="small" type="number" placeholder="Max" fullWidth disabled />
-                                        </Box>
-                                    </TableCell>
-                                    <TableCell sx={{ py: 1 }}>
-                                        <Box sx={{ display: 'flex', gap: 0.5, flexDirection: 'column' }}>
-                                            <TextField size="small" type="number" placeholder="Min" fullWidth disabled />
-                                            <TextField size="small" type="number" placeholder="Max" fullWidth disabled />
-                                        </Box>
-                                    </TableCell>
-                                </>
-                            )}
-                            {/* Remarks Filter */}
-                            <TableCell sx={{ py: 1 }}>
-                                <TextField
-                                    size="small"
-                                    placeholder="Filter..."
-                                    value={filters.remarks}
-                                    onChange={(e) => handleFilterChange('remarks', e.target.value)}
-                                    fullWidth
-                                    InputProps={{
-                                        startAdornment: (
-                                            <InputAdornment position="start">
-                                                <FilterList fontSize="small" />
-                                            </InputAdornment>
-                                        ),
-                                    }}
-                                />
-                            </TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {filteredBudgets.map((row) => (
-                            <TableRow key={row.id} hover>
-                                <TableCell sx={{ fontWeight: 500, color: 'primary.main' }}>{row.uid}</TableCell>
-                                <TableCell>{row.parent_uid || '-'}</TableCell>
-                                <TableCell>{row.vendor_name}</TableCell>
-                                <TableCell>{row.service_description}</TableCell>
-                                <TableCell>{formatDate(row.service_start_date)}</TableCell>
-                                <TableCell>{formatDate(row.service_end_date)}</TableCell>
-                                <TableCell>
-                                    <Chip
-                                        label={row.is_renewal ? "Renewal" : "New PO"}
-                                        size="small"
-                                        color={row.is_renewal ? "info" : "success"}
-                                        variant="outlined"
-                                    />
+                                <TableCell sx={excelTableStyles.filterCell}>
+                                    <TextField size="small" placeholder="Filter..." value={filters.parent_uid} onChange={(e) => handleFilterChange('parent_uid', e.target.value)} fullWidth sx={excelTableStyles.filterInput} />
                                 </TableCell>
-                                <TableCell>{row.budget_head_name}</TableCell>
-                                <TableCell>{row.tower_name}</TableCell>
-                                <TableCell>{row.contract_id}</TableCell>
-                                <TableCell>{row.po_entity_name}</TableCell>
-                                <TableCell>{row.allocation_basis_name}</TableCell>
-                                <TableCell>{row.service_type_name}</TableCell>
+                                <TableCell sx={excelTableStyles.filterCell}>
+                                    <TextField size="small" placeholder="Filter..." value={filters.vendor_name} onChange={(e) => handleFilterChange('vendor_name', e.target.value)} fullWidth sx={excelTableStyles.filterInput} />
+                                </TableCell>
+                                <TableCell sx={excelTableStyles.filterCell}>
+                                    <TextField size="small" placeholder="Filter..." value={filters.service_description} onChange={(e) => handleFilterChange('service_description', e.target.value)} fullWidth sx={excelTableStyles.filterInput} />
+                                </TableCell>
+                                <TableCell sx={excelTableStyles.filterCell}>
+                                    <TextField size="small" type="date" value={filters.start_date} onChange={(e) => handleFilterChange('start_date', e.target.value)} fullWidth sx={excelTableStyles.filterInput} />
+                                </TableCell>
+                                <TableCell sx={excelTableStyles.filterCell}>
+                                    <TextField size="small" type="date" value={filters.end_date} onChange={(e) => handleFilterChange('end_date', e.target.value)} fullWidth sx={excelTableStyles.filterInput} />
+                                </TableCell>
+                                <TableCell sx={excelTableStyles.filterCell}>
+                                    <TextField size="small" select value={filters.is_renewal} onChange={(e) => handleFilterChange('is_renewal', e.target.value)} fullWidth sx={excelTableStyles.filterInput}>
+                                        <MenuItem value="">All</MenuItem>
+                                        <MenuItem value="true">Renewal</MenuItem>
+                                        <MenuItem value="false">New PO</MenuItem>
+                                    </TextField>
+                                </TableCell>
+                                <TableCell sx={excelTableStyles.filterCell}>
+                                    <TextField size="small" placeholder="Filter..." value={filters.budget_head_name} onChange={(e) => handleFilterChange('budget_head_name', e.target.value)} fullWidth sx={excelTableStyles.filterInput} />
+                                </TableCell>
+                                <TableCell sx={excelTableStyles.filterCell}>
+                                    <TextField size="small" placeholder="Filter..." value={filters.tower_name} onChange={(e) => handleFilterChange('tower_name', e.target.value)} fullWidth sx={excelTableStyles.filterInput} />
+                                </TableCell>
+                                <TableCell sx={excelTableStyles.filterCell}>
+                                    <TextField size="small" placeholder="Filter..." value={filters.contract_id} onChange={(e) => handleFilterChange('contract_id', e.target.value)} fullWidth sx={excelTableStyles.filterInput} />
+                                </TableCell>
+                                <TableCell sx={excelTableStyles.filterCell}>
+                                    <TextField size="small" placeholder="Filter..." value={filters.po_entity_name} onChange={(e) => handleFilterChange('po_entity_name', e.target.value)} fullWidth sx={excelTableStyles.filterInput} />
+                                </TableCell>
+                                <TableCell sx={excelTableStyles.filterCell}>
+                                    <TextField size="small" placeholder="Filter..." value={filters.allocation_basis_name} onChange={(e) => handleFilterChange('allocation_basis_name', e.target.value)} fullWidth sx={excelTableStyles.filterInput} />
+                                </TableCell>
+                                <TableCell sx={excelTableStyles.filterCell}>
+                                    <TextField size="small" placeholder="Filter..." value={filters.service_type_name} onChange={(e) => handleFilterChange('service_type_name', e.target.value)} fullWidth sx={excelTableStyles.filterInput} />
+                                </TableCell>
                                 {selectedFiscalYears.includes('FY25') && (
                                     <>
-                                        <TableCell align="right" sx={{ fontWeight: 600, color: 'primary.main' }}>
-                                            {formatCurrency(row.fy25_budget)}
-                                        </TableCell>
-                                        <TableCell align="right" sx={{ fontWeight: 600, color: 'success.main' }}>
-                                            {formatCurrency(row.fy25_actuals)}
-                                        </TableCell>
+                                        <TableCell sx={excelTableStyles.filterCell} />
+                                        <TableCell sx={excelTableStyles.filterCell} />
+                                        <TableCell sx={excelTableStyles.filterCell} />
+                                        <TableCell sx={excelTableStyles.filterCell} />
                                     </>
                                 )}
                                 {selectedFiscalYears.includes('FY26') && (
                                     <>
-                                        <TableCell align="right" sx={{ fontWeight: 600, color: 'primary.main' }}>
-                                            {formatCurrency(row.fy26_budget)}
-                                        </TableCell>
-                                        <TableCell align="right" sx={{ fontWeight: 600, color: 'success.main' }}>
-                                            {formatCurrency(row.fy26_actuals)}
-                                        </TableCell>
+                                        <TableCell sx={excelTableStyles.filterCell} />
+                                        <TableCell sx={excelTableStyles.filterCell} />
+                                        <TableCell sx={excelTableStyles.filterCell} />
+                                        <TableCell sx={excelTableStyles.filterCell} />
                                     </>
                                 )}
                                 {selectedFiscalYears.includes('FY27') && (
                                     <>
-                                        <TableCell align="right" sx={{ color: 'text.disabled' }}>-</TableCell>
-                                        <TableCell align="right" sx={{ color: 'text.disabled' }}>-</TableCell>
+                                        <TableCell sx={excelTableStyles.filterCell} />
+                                        <TableCell sx={excelTableStyles.filterCell} />
+                                        <TableCell sx={excelTableStyles.filterCell} />
+                                        <TableCell sx={excelTableStyles.filterCell} />
                                     </>
                                 )}
-                                <TableCell>{row.remarks || '-'}</TableCell>
-                            </TableRow>
-                        ))}
-                        {filteredBudgets.length === 0 && (
-                            <TableRow>
-                                <TableCell colSpan={18} align="center" sx={{ py: 3 }}>
-                                    <Typography variant="body1" color="text.secondary">
-                                        {budgets.length === 0
-                                            ? 'No budget line items found. Click "Add Line Item" to create one.'
-                                            : 'No items match the current filters. Try adjusting your filters or click "Clear Filters".'}
-                                    </Typography>
+                                <TableCell sx={excelTableStyles.filterCell}>
+                                    <TextField size="small" placeholder="Filter..." value={filters.remarks} onChange={(e) => handleFilterChange('remarks', e.target.value)} fullWidth sx={excelTableStyles.filterInput} />
                                 </TableCell>
+                                {isAdmin && <TableCell sx={excelTableStyles.filterCell} />}
                             </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </TableContainer>
-        </Paper>
+                        </TableHead>
+                        <TableBody>
+                            {filteredBudgets.map((row) => (
+                                <TableRow key={row.id} sx={excelTableStyles.tableRow}>
+                                    <TableCell sx={excelTableStyles.dataCell}>{row.uid}</TableCell>
+                                    <TableCell sx={excelTableStyles.dataCell}>{row.parent_uid || '-'}</TableCell>
+                                    <TableCell sx={excelTableStyles.dataCell}>{row.vendor_name}</TableCell>
+                                    <TableCell sx={excelTableStyles.dataCell}>{row.service_description}</TableCell>
+                                    <TableCell sx={excelTableStyles.dataCell}>{formatDate(row.service_start_date)}</TableCell>
+                                    <TableCell sx={excelTableStyles.dataCell}>{formatDate(row.service_end_date)}</TableCell>
+                                    <TableCell sx={excelTableStyles.dataCell}>
+                                        <Chip
+                                            label={row.is_renewal ? "Renewal" : "New PO"}
+                                            size="small"
+                                            color={row.is_renewal ? "info" : "success"}
+                                            variant="outlined"
+                                            sx={excelTableStyles.statusChip}
+                                        />
+                                    </TableCell>
+                                    <TableCell sx={excelTableStyles.dataCell}>{row.budget_head_name}</TableCell>
+                                    <TableCell sx={excelTableStyles.dataCell}>{row.tower_name}</TableCell>
+                                    <TableCell sx={excelTableStyles.dataCell}>{row.contract_id}</TableCell>
+                                    <TableCell sx={excelTableStyles.dataCell}>{row.po_entity_name}</TableCell>
+                                    <TableCell sx={excelTableStyles.dataCell}>{row.allocation_basis_name}</TableCell>
+                                    <TableCell sx={excelTableStyles.dataCell}>{row.service_type_name}</TableCell>
+                                    {selectedFiscalYears.includes('FY25') && (
+                                        <>
+                                            <TableCell sx={{ ...excelTableStyles.dataCell, ...excelTableStyles.numericCell }}>
+                                                {formatCurrency(row.fy25_budget)}
+                                            </TableCell>
+                                            <TableCell sx={{ ...excelTableStyles.dataCell, ...excelTableStyles.numericCell }}>
+                                                {formatCurrency(row.fy25_actuals)}
+                                            </TableCell>
+                                            <TableCell sx={{ ...excelTableStyles.dataCell, ...excelTableStyles.numericCell, bgcolor: '#e3f2fd' }}>
+                                                {formatCurrency(row.uid_total_fy25_budget)}
+                                            </TableCell>
+                                            <TableCell sx={{ ...excelTableStyles.dataCell, ...excelTableStyles.numericCell, bgcolor: '#e3f2fd' }}>
+                                                {formatCurrency(row.uid_total_fy25_actuals)}
+                                            </TableCell>
+                                        </>
+                                    )}
+                                    {selectedFiscalYears.includes('FY26') && (
+                                        <>
+                                            <TableCell sx={{ ...excelTableStyles.dataCell, ...excelTableStyles.numericCell }}>
+                                                {formatCurrency(row.fy26_budget)}
+                                            </TableCell>
+                                            <TableCell sx={{ ...excelTableStyles.dataCell, ...excelTableStyles.numericCell }}>
+                                                {formatCurrency(row.fy26_actuals)}
+                                            </TableCell>
+                                            <TableCell sx={{ ...excelTableStyles.dataCell, ...excelTableStyles.numericCell, bgcolor: '#e3f2fd' }}>
+                                                {formatCurrency(row.uid_total_fy26_budget)}
+                                            </TableCell>
+                                            <TableCell sx={{ ...excelTableStyles.dataCell, ...excelTableStyles.numericCell, bgcolor: '#e3f2fd' }}>
+                                                {formatCurrency(row.uid_total_fy26_actuals)}
+                                            </TableCell>
+                                        </>
+                                    )}
+                                    {selectedFiscalYears.includes('FY27') && (
+                                        <>
+                                            <TableCell sx={{ ...excelTableStyles.dataCell, ...excelTableStyles.numericCell }}>-</TableCell>
+                                            <TableCell sx={{ ...excelTableStyles.dataCell, ...excelTableStyles.numericCell }}>-</TableCell>
+                                            <TableCell sx={{ ...excelTableStyles.dataCell, ...excelTableStyles.numericCell, bgcolor: '#e3f2fd' }}>
+                                                {formatCurrency(row.uid_total_fy27_budget)}
+                                            </TableCell>
+                                            <TableCell sx={{ ...excelTableStyles.dataCell, ...excelTableStyles.numericCell, bgcolor: '#e3f2fd' }}>
+                                                {formatCurrency(row.uid_total_fy27_actuals)}
+                                            </TableCell>
+                                        </>
+                                    )}
+                                    <TableCell sx={excelTableStyles.dataCell}>{row.remarks || '-'}</TableCell>
+                                    {isAdmin && (
+                                        <TableCell sx={excelTableStyles.dataCell}>
+                                            <IconButton
+                                                size="small"
+                                                onClick={() => {
+                                                    setEditingItem(row);
+                                                    setFormData({
+                                                        uid: row.uid,
+                                                        parent_uid: row.parent_uid || '',
+                                                        vendor_id: row.vendor_id || '',
+                                                        service_description: row.service_description,
+                                                        service_start_date: row.service_start_date ? row.service_start_date.split('T')[0] : '',
+                                                        service_end_date: row.service_end_date ? row.service_end_date.split('T')[0] : '',
+                                                        tower_id: row.tower_id || '',
+                                                        budget_head_id: row.budget_head_id || '',
+                                                        po_entity_id: row.po_entity_id || '',
+                                                        service_type_id: row.service_type_id || '',
+                                                        allocation_basis_id: row.allocation_basis_id || '',
+                                                        unit_cost: row.unit_cost || '',
+                                                        quantity: row.quantity || '',
+                                                        total_cost: row.total_cost || '',
+                                                        fiscal_year: row.fiscal_year || '',
+                                                        remarks: row.remarks || ''
+                                                    });
+                                                    setOpenDialog(true);
+                                                }}
+                                                color="secondary"
+                                                sx={{ padding: '2px' }}
+                                            >
+                                                <Edit fontSize="small" />
+                                            </IconButton>
+                                        </TableCell>
+                                    )}
+                                </TableRow>
+                            ))}
+                            {filteredBudgets.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={18} align="center" sx={{ py: 3 }}>
+                                        <Typography variant="body2" color="text.secondary">
+                                            {budgets.length === 0
+                                                ? 'No budget line items found. Click "Add Line Item" to create one.'
+                                                : 'No items match the current filters. Try adjusting your filters or click "Clear Filters".'}
+                                        </Typography>
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table >
+                </TableContainer >
+            </Paper >
 
-            {/* Add Line Item Dialog */ }
-    < Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>Add New Line Item</Typography>
-            <IconButton onClick={() => setOpenDialog(false)} size="small">
-                <Close />
-            </IconButton>
-        </DialogTitle>
-        <DialogContent dividers>
-            <Grid container spacing={2} sx={{ mt: 0.5 }}>
-                <Grid item xs={12} sm={6}>
-                    <TextField
-                        fullWidth
-                        required
-                        label="UID (Unique ID)"
-                        name="uid"
-                        value={formData.uid}
-                        onChange={handleInputChange}
-                        placeholder="e.g., DIT-OPEX-FY26-001"
-                        helperText="Must be unique across all line items"
-                    />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                    <TextField
-                        fullWidth
-                        label="Parent UID"
-                        name="parent_uid"
-                        value={formData.parent_uid}
-                        onChange={handleInputChange}
-                        placeholder="Optional - for renewal items"
-                    />
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                    <TextField
-                        fullWidth
-                        required
-                        select
-                        label="Vendor"
-                        name="vendor_id"
-                        value={formData.vendor_id}
-                        onChange={handleInputChange}
-                    >
-                        {vendors.map((vendor) => (
-                            <MenuItem key={vendor.id} value={vendor.id}>
-                                {vendor.name}
-                            </MenuItem>
-                        ))}
-                    </TextField>
-                </Grid>
-
-                <Grid item xs={12}>
-                    <TextField
-                        fullWidth
-                        required
-                        multiline
-                        rows={2}
-                        label="Service Description"
-                        name="service_description"
-                        value={formData.service_description}
-                        onChange={handleInputChange}
-                    />
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                    <TextField
-                        fullWidth
-                        type="date"
-                        label="Service Start Date"
-                        name="service_start_date"
-                        value={formData.service_start_date}
-                        onChange={handleInputChange}
-                        InputLabelProps={{ shrink: true }}
-                    />
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                    <TextField
-                        fullWidth
-                        type="date"
-                        label="Service End Date"
-                        name="service_end_date"
-                        value={formData.service_end_date}
-                        onChange={handleInputChange}
-                        InputLabelProps={{ shrink: true }}
-                    />
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                    <TextField
-                        fullWidth
-                        required
-                        select
-                        label="Tower"
-                        name="tower_id"
-                        value={formData.tower_id}
-                        onChange={handleInputChange}
-                    >
-                        {towers.map((tower) => (
-                            <MenuItem key={tower.id} value={tower.id}>
-                                {tower.name}
-                            </MenuItem>
-                        ))}
-                    </TextField>
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                    <TextField
-                        fullWidth
-                        required
-                        select
-                        label="Budget Head"
-                        name="budget_head_id"
-                        value={formData.budget_head_id}
-                        onChange={handleInputChange}
-                    >
-                        {budgetHeads.map((head) => (
-                            <MenuItem key={head.id} value={head.id}>
-                                {head.name}
-                            </MenuItem>
-                        ))}
-                    </TextField>
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                    <TextField
-                        fullWidth
-                        select
-                        label="PO Entity"
-                        name="po_entity_id"
-                        value={formData.po_entity_id}
-                        onChange={handleInputChange}
-                    >
-                        <MenuItem value="">None</MenuItem>
-                        {poEntities.map((entity) => (
-                            <MenuItem key={entity.id} value={entity.id}>
-                                {entity.name}
-                            </MenuItem>
-                        ))}
-                    </TextField>
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                    <TextField
-                        fullWidth
-                        select
-                        label="Service Type"
-                        name="service_type_id"
-                        value={formData.service_type_id}
-                        onChange={handleInputChange}
-                    >
-                        <MenuItem value="">None</MenuItem>
-                        {serviceTypes.map((type) => (
-                            <MenuItem key={type.id} value={type.id}>
-                                {type.name}
-                            </MenuItem>
-                        ))}
-                    </TextField>
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                    <TextField
-                        fullWidth
-                        select
-                        label="Allocation Basis"
-                        name="allocation_basis_id"
-                        value={formData.allocation_basis_id}
-                        onChange={handleInputChange}
-                    >
-                        <MenuItem value="">None</MenuItem>
-                        {allocationBases.map((basis) => (
-                            <MenuItem key={basis.id} value={basis.id}>
-                                {basis.name}
-                            </MenuItem>
-                        ))}
-                    </TextField>
-                </Grid>
-
-                <Grid item xs={12} sm={4}>
-                    <TextField
-                        fullWidth
-                        required
-                        type="number"
-                        label="Unit Cost"
-                        name="unit_cost"
-                        value={formData.unit_cost}
-                        onChange={handleInputChange}
-                        inputProps={{ step: "0.01", min: "0" }}
-                    />
-                </Grid>
-
-                <Grid item xs={12} sm={4}>
-                    <TextField
-                        fullWidth
-                        required
-                        type="number"
-                        label="Quantity"
-                        name="quantity"
-                        value={formData.quantity}
-                        onChange={handleInputChange}
-                        inputProps={{ min: "1", step: "1" }}
-                    />
-                </Grid>
-
-                <Grid item xs={12} sm={4}>
-                    <TextField
-                        fullWidth
-                        required
-                        type="number"
-                        label="Total Cost"
-                        name="total_cost"
-                        value={formData.total_cost}
-                        InputProps={{
-                            readOnly: true,
-                        }}
-                        helperText="Auto-calculated (Unit Cost * Quantity)"
-                    />
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                    <TextField
-                        fullWidth
-                        required
-                        select
-                        label="Fiscal Year"
-                        name="fiscal_year"
-                        value={formData.fiscal_year}
-                        onChange={handleInputChange}
-                        helperText="Select the fiscal year for this budget allocation"
-                    >
-                        <MenuItem value="">Select Fiscal Year</MenuItem>
-                        {availableFiscalYears.map((fy) => {
-                            // Map FY label to year number (e.g., "FY25" -> 2025)
-                            const yearMatch = fy.match(/FY(\d{2})/);
-                            const yearNum = yearMatch ? 2000 + parseInt(yearMatch[1]) : null;
-                            return (
-                                <MenuItem key={fy} value={yearNum}>
-                                    {fy}
-                                </MenuItem>
-                            );
-                        })}
-                    </TextField>
-                </Grid>
-
-                <Grid item xs={12}>
-                    <TextField
-                        fullWidth
-                        multiline
-                        rows={2}
-                        label="Remarks"
-                        name="remarks"
-                        value={formData.remarks}
-                        onChange={handleInputChange}
-                    />
-                </Grid>
-            </Grid>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-            <Button onClick={() => setOpenDialog(false)} variant="outlined">
-                Cancel
-            </Button>
-            <Button
-                onClick={handleSubmit}
-                variant="contained"
-                disabled={!formData.uid || !formData.vendor_id || !formData.service_description || !formData.tower_id || !formData.budget_head_id || !formData.fiscal_year}
-            >
-                Add Line Item
-            </Button>
-        </DialogActions>
-    </Dialog>
-
-    {/* Snackbar for notifications */ }
-    <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-    >
-        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
-            {snackbar.message}
-        </Alert>
-    </Snackbar>
-
-    {/* Manage Fiscal Years Dialog */ }
-    <Dialog
-        open={openManageFYDialog}
-        onClose={() => setOpenManageFYDialog(false)}
-        maxWidth="xs"
-        fullWidth
-    >
-        <DialogTitle>Manage Fiscal Years</DialogTitle>
-        <DialogContent>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Enable or disable fiscal years to control their visibility in the application.
-            </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {allFiscalYears.map((fy) => (
-                    <Paper
-                        key={fy.id}
-                        variant="outlined"
-                        sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                    >
-                        <Box>
-                            <Typography variant="subtitle1" fontWeight="bold">
-                                {fy.label}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                                {fy.description}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                                {new Date(fy.start_date).getFullYear()} - {new Date(fy.end_date).getFullYear()}
-                            </Typography>
-                        </Box>
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={fy.is_active}
-                                    onChange={() => handleToggleFYStatus(fy.id, fy.is_active)}
-                                    color="primary"
-                                />
-                            }
-                            label={fy.is_active ? "Active" : "Inactive"}
-                            labelPlacement="start"
-                        />
-                    </Paper>
-                ))}
-                {allFiscalYears.length === 0 && (
-                    <Typography variant="body2" align="center" sx={{ py: 2 }}>
-                        No fiscal years found.
+            {/* Add Line Item Dialog */}
+            < Dialog open={openDialog} onClose={() => { setOpenDialog(false); setEditingItem(null); resetForm(); }} maxWidth="md" fullWidth >
+                <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                        {editingItem ? 'Edit Line Item' : 'Add New Line Item'}
                     </Typography>
-                )}
-            </Box>
-        </DialogContent>
-        <DialogActions>
-            <Button onClick={() => setOpenManageFYDialog(false)}>Close</Button>
-        </DialogActions>
-    </Dialog>
+                    <IconButton onClick={() => { setOpenDialog(false); setEditingItem(null); resetForm(); }} size="small">
+                        <Close />
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent dividers>
+                    <Grid container spacing={2} sx={{ mt: 0.5 }}>
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                fullWidth
+                                size="small"
+                                required
+                                label="UID (Unique ID)"
+                                name="uid"
+                                value={formData.uid}
+                                onChange={handleInputChange}
+                                placeholder="e.g., DIT-OPEX-FY26-001"
+                                helperText="Can be shared across multiple PO entities"
+                            />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                fullWidth
+                                size="small"
+                                label="Parent UID"
+                                name="parent_uid"
+                                value={formData.parent_uid}
+                                onChange={handleInputChange}
+                                placeholder="Optional - for renewal items"
+                            />
+                        </Grid>
+
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                fullWidth
+                                size="small"
+                                required
+                                select
+                                label="Vendor"
+                                name="vendor_id"
+                                value={formData.vendor_id}
+                                onChange={handleInputChange}
+                            >
+                                {vendors.map((vendor) => (
+                                    <MenuItem key={vendor.id} value={vendor.id}>
+                                        {vendor.name}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                        </Grid>
+
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                fullWidth
+                                size="small"
+                                required
+                                label="Service Description"
+                                name="service_description"
+                                value={formData.service_description}
+                                onChange={handleInputChange}
+                            />
+                        </Grid>
+
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                fullWidth
+                                size="small"
+                                type="date"
+                                label="Service Start Date"
+                                name="service_start_date"
+                                value={formData.service_start_date}
+                                onChange={handleInputChange}
+                                InputLabelProps={{ shrink: true }}
+                                error={!!formErrors.dateError}
+                            />
+                        </Grid>
+
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                fullWidth
+                                size="small"
+                                type="date"
+                                label="Service End Date"
+                                name="service_end_date"
+                                value={formData.service_end_date}
+                                onChange={handleInputChange}
+                                InputLabelProps={{ shrink: true }}
+                                error={!!formErrors.dateError}
+                                helperText={formErrors.dateError}
+                            />
+                        </Grid>
+
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                fullWidth
+                                size="small"
+                                required
+                                select
+                                label="Tower"
+                                name="tower_id"
+                                value={formData.tower_id}
+                                onChange={handleInputChange}
+                            >
+                                {towers.map((tower) => (
+                                    <MenuItem key={tower.id} value={tower.id}>
+                                        {tower.name}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                        </Grid>
+
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                fullWidth
+                                size="small"
+                                required
+                                select
+                                label="Budget Head"
+                                name="budget_head_id"
+                                value={formData.budget_head_id}
+                                onChange={handleInputChange}
+                            >
+                                {budgetHeads.map((head) => (
+                                    <MenuItem key={head.id} value={head.id}>
+                                        {head.name}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                        </Grid>
+
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                fullWidth
+                                size="small"
+                                select
+                                label="PO Entity"
+                                name="po_entity_id"
+                                value={formData.po_entity_id}
+                                onChange={handleInputChange}
+                            >
+                                <MenuItem value="">None</MenuItem>
+                                {poEntities.map((entity) => (
+                                    <MenuItem key={entity.id} value={entity.id}>
+                                        {entity.name}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                        </Grid>
+
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                fullWidth
+                                size="small"
+                                select
+                                label="Service Type"
+                                name="service_type_id"
+                                value={formData.service_type_id}
+                                onChange={handleInputChange}
+                            >
+                                <MenuItem value="">None</MenuItem>
+                                {serviceTypes.map((type) => (
+                                    <MenuItem key={type.id} value={type.id}>
+                                        {type.name}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                        </Grid>
+
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                fullWidth
+                                size="small"
+                                select
+                                label="Allocation Basis"
+                                name="allocation_basis_id"
+                                value={formData.allocation_basis_id}
+                                onChange={handleInputChange}
+                            >
+                                <MenuItem value="">None</MenuItem>
+                                {allocationBases.map((basis) => (
+                                    <MenuItem key={basis.id} value={basis.id}>
+                                        {basis.name}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                        </Grid>
+
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                fullWidth
+                                size="small"
+                                required
+                                type="number"
+                                label="Unit Cost"
+                                name="unit_cost"
+                                value={formData.unit_cost}
+                                onChange={handleInputChange}
+                                inputProps={{ step: "0.01", min: "0" }}
+                            />
+                        </Grid>
+
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                fullWidth
+                                size="small"
+                                required
+                                type="number"
+                                label="Quantity"
+                                name="quantity"
+                                value={formData.quantity}
+                                onChange={handleInputChange}
+                                inputProps={{ min: "1", step: "1" }}
+                            />
+                        </Grid>
+
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                fullWidth
+                                size="small"
+                                required
+                                type="number"
+                                label="Total Cost"
+                                name="total_cost"
+                                value={formData.total_cost}
+                                InputProps={{
+                                    readOnly: true,
+                                }}
+                                helperText="Auto-calculated"
+                            />
+                        </Grid>
+
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                fullWidth
+                                size="small"
+                                required
+                                select
+                                label="Fiscal Year"
+                                name="fiscal_year"
+                                value={formData.fiscal_year}
+                                onChange={handleInputChange}
+                                helperText="Select the fiscal year for this budget allocation"
+                            >
+                                <MenuItem value="">Select Fiscal Year</MenuItem>
+                                {availableFiscalYears.map((fy) => {
+                                    // Map FY label to year number (e.g., "FY25" -> 2025)
+                                    const yearMatch = fy.match(/FY(\d{2})/);
+                                    const yearNum = yearMatch ? 2000 + parseInt(yearMatch[1]) : null;
+                                    return (
+                                        <MenuItem key={fy} value={yearNum}>
+                                            {fy}
+                                        </MenuItem>
+                                    );
+                                })}
+                            </TextField>
+                        </Grid>
+
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                fullWidth
+                                size="small"
+                                label="Remarks"
+                                name="remarks"
+                                value={formData.remarks}
+                                onChange={handleInputChange}
+                            />
+                        </Grid>
+                    </Grid>
+                </DialogContent>
+                <DialogActions sx={{ px: 3, py: 2 }}>
+                    <Button onClick={() => setOpenDialog(false)} variant="outlined">
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={handleSubmit}
+                        variant="contained"
+                        disabled={!formData.uid || !formData.vendor_id || !formData.service_description || !formData.tower_id || !formData.budget_head_id || !formData.fiscal_year}
+                    >
+                        Add Line Item
+                    </Button>
+                </DialogActions>
+            </Dialog >
+
+            {/* Snackbar for notifications */}
+            < Snackbar
+                open={snackbar.open}
+                autoHideDuration={6000}
+                onClose={handleCloseSnackbar}
+                anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+            >
+                <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar >
+
+            {/* Manage Fiscal Years Dialog */}
+            < Dialog
+                open={openManageFYDialog}
+                onClose={() => setOpenManageFYDialog(false)}
+                maxWidth="xs"
+                fullWidth
+            >
+                <DialogTitle>Manage Fiscal Years</DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        Enable or disable fiscal years to control their visibility in the application.
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        {allFiscalYears.map((fy) => (
+                            <Paper
+                                key={fy.id}
+                                variant="outlined"
+                                sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                            >
+                                <Box>
+                                    <Typography variant="subtitle1" fontWeight="bold">
+                                        {fy.label}
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                                        {fy.description}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        {new Date(fy.start_date).getFullYear()} - {new Date(fy.end_date).getFullYear()}
+                                    </Typography>
+                                </Box>
+                                <FormControlLabel
+                                    control={
+                                        <Switch
+                                            checked={fy.is_active}
+                                            onChange={() => handleToggleFYStatus(fy.id, fy.is_active)}
+                                            color="primary"
+                                        />
+                                    }
+                                    label={fy.is_active ? "Active" : "Inactive"}
+                                    labelPlacement="start"
+                                />
+                            </Paper>
+                        ))}
+                        {allFiscalYears.length === 0 && (
+                            <Typography variant="body2" align="center" sx={{ py: 2 }}>
+                                No fiscal years found.
+                            </Typography>
+                        )}
+                    </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenManageFYDialog(false)}>Close</Button>
+                </DialogActions>
+            </Dialog >
         </Box >
     );
 };

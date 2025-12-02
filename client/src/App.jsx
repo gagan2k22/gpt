@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import BudgetList from './pages/BudgetList';
 import POList from './pages/POList';
 import POCreate from './pages/POCreate';
+import POEdit from './pages/POEdit';
 import ActualsList from './pages/ActualsList';
 import MasterData from './pages/MasterData';
 import UserManagement from './pages/UserManagement';
@@ -35,6 +36,7 @@ function App() {
                             <Route path="budgets" element={<BudgetList />} />
                             <Route path="pos" element={<POList />} />
                             <Route path="pos/new" element={<POCreate />} />
+                            <Route path="pos/:id/edit" element={<POEdit />} />
                             <Route path="actuals" element={<ActualsList />} />
                             <Route path="master-data" element={<MasterData />} />
                             <Route path="users" element={<UserManagement />} />

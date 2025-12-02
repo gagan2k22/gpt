@@ -9,12 +9,15 @@ import { Add, FilterList, Clear, Visibility, Edit, FileDownload } from '@mui/ico
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
+import { excelTableStyles } from '../styles/excelTableStyles';
+import { useIsAdmin } from '../hooks/usePermissions';
 
 const POList = () => {
     const [pos, setPOs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
     const navigate = useNavigate();
+    const isAdmin = useIsAdmin(); // Check if user is admin
 
     // Fiscal Year Selection (linked to Budget Tracker)
     const [selectedFiscalYears, setSelectedFiscalYears] = useState(['FY25', 'FY26']);
@@ -147,6 +150,20 @@ const POList = () => {
         }
     }, []);
 
+
+
+    const filteredPOs = useMemo(() => {
+        return pos.filter(po => {
+            if (filters.po_number && !po.po_number?.toLowerCase().includes(filters.po_number.toLowerCase())) return false;
+            if (filters.pr_number && !po.pr_number?.toLowerCase().includes(filters.pr_number.toLowerCase())) return false;
+            if (filters.vendor && !po.vendor?.name?.toLowerCase().includes(filters.vendor.toLowerCase())) return false;
+            if (filters.budget_head && !po.budget_head?.name?.toLowerCase().includes(filters.budget_head.toLowerCase())) return false;
+            if (filters.entity && !po.po_entity?.name?.toLowerCase().includes(filters.entity.toLowerCase())) return false;
+            if (filters.remarks && !po.remarks?.toLowerCase().includes(filters.remarks.toLowerCase())) return false;
+            return true;
+        });
+    }, [pos, filters]);
+
     const handleExportToExcel = useCallback(() => {
         try {
             const exportData = filteredPOs.map(po => ({
@@ -186,19 +203,6 @@ const POList = () => {
             showSnackbar('Error exporting data', 'error');
         }
     }, [filteredPOs, formatDate, showSnackbar]);
-
-    // Filter POs based on current filters
-    const filteredPOs = useMemo(() => {
-        return pos.filter(po => {
-            if (filters.po_number && !po.po_number?.toLowerCase().includes(filters.po_number.toLowerCase())) return false;
-            if (filters.pr_number && !po.pr_number?.toLowerCase().includes(filters.pr_number.toLowerCase())) return false;
-            if (filters.vendor && !po.vendor?.name?.toLowerCase().includes(filters.vendor.toLowerCase())) return false;
-            if (filters.budget_head && !po.budget_head?.name?.toLowerCase().includes(filters.budget_head.toLowerCase())) return false;
-            if (filters.entity && !po.po_entity?.name?.toLowerCase().includes(filters.entity.toLowerCase())) return false;
-            if (filters.remarks && !po.remarks?.toLowerCase().includes(filters.remarks.toLowerCase())) return false;
-            return true;
-        });
-    }, [pos, filters]);
 
     const getStatusColor = (status) => {
         const colors = {
@@ -281,233 +285,115 @@ const POList = () => {
                 </Typography>
             </Box>
 
-            <Paper elevation={2} sx={{ width: '100%', overflow: 'hidden', borderRadius: 2 }}>
-                <TableContainer sx={{ maxHeight: '75vh' }}>
-                    <Table stickyHeader sx={{ minWidth: 2800 }}>
+            <Paper elevation={0} sx={{ width: '100%', border: '1px solid #d0d7de', borderRadius: '6px' }}>
+                <TableContainer sx={excelTableStyles.tableContainer}>
+                    <Table stickyHeader sx={excelTableStyles.table}>
                         <TableHead>
                             <TableRow>
-                                <TableCell sx={{ minWidth: 80, fontWeight: 600, bgcolor: 'primary.main', color: 'white' }}>FY</TableCell>
-                                <TableCell sx={{ minWidth: 150, fontWeight: 600, bgcolor: 'primary.main', color: 'white' }}>UID</TableCell>
-                                <TableCell sx={{ minWidth: 250, fontWeight: 600, bgcolor: 'primary.main', color: 'white' }}>Service Description</TableCell>
-                                <TableCell sx={{ minWidth: 180, fontWeight: 600, bgcolor: 'primary.main', color: 'white' }}>Budget Head</TableCell>
-                                <TableCell sx={{ minWidth: 150, fontWeight: 600, bgcolor: 'primary.main', color: 'white' }}>Entity</TableCell>
-                                <TableCell sx={{ minWidth: 140, fontWeight: 600, bgcolor: 'primary.main', color: 'white' }}>PR Number</TableCell>
-                                <TableCell sx={{ minWidth: 130, fontWeight: 600, bgcolor: 'primary.main', color: 'white' }}>PR Date</TableCell>
-                                <TableCell sx={{ minWidth: 140, fontWeight: 600, bgcolor: 'primary.main', color: 'white' }}>PR Amount</TableCell>
-                                <TableCell sx={{ minWidth: 100, fontWeight: 600, bgcolor: 'primary.main', color: 'white' }}>Currency</TableCell>
-                                <TableCell sx={{ minWidth: 140, fontWeight: 600, bgcolor: 'primary.main', color: 'white' }}>PO Number</TableCell>
-                                <TableCell sx={{ minWidth: 130, fontWeight: 600, bgcolor: 'primary.main', color: 'white' }}>PO Date</TableCell>
-                                <TableCell sx={{ minWidth: 140, fontWeight: 600, bgcolor: 'primary.main', color: 'white' }}>Service Start</TableCell>
-                                <TableCell sx={{ minWidth: 140, fontWeight: 600, bgcolor: 'primary.main', color: 'white' }}>Service End</TableCell>
-                                <TableCell sx={{ minWidth: 180, fontWeight: 600, bgcolor: 'primary.main', color: 'white' }}>Vendor</TableCell>
-                                <TableCell sx={{ minWidth: 140, fontWeight: 600, bgcolor: 'primary.main', color: 'white' }}>PO Value</TableCell>
-                                <TableCell sx={{ minWidth: 160, fontWeight: 600, bgcolor: 'primary.main', color: 'white' }}>Common Currency Value (INR)</TableCell>
-                                <TableCell sx={{ minWidth: 140, fontWeight: 600, bgcolor: 'primary.main', color: 'white' }}>Common Currency</TableCell>
-                                <TableCell sx={{ minWidth: 200, fontWeight: 600, bgcolor: 'primary.main', color: 'white' }}>Remarks</TableCell>
-                                <TableCell sx={{ minWidth: 120, fontWeight: 600, bgcolor: 'primary.main', color: 'white' }}>Value in Lac</TableCell>
-                                <TableCell sx={{ minWidth: 120, fontWeight: 600, bgcolor: 'primary.main', color: 'white' }}>Status</TableCell>
-                                <TableCell sx={{ minWidth: 100, fontWeight: 600, bgcolor: 'primary.main', color: 'white' }}>Actions</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '60px' }}>FY</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '120px' }}>UID</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '200px' }}>Service Description</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '150px' }}>Budget Head</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '120px' }}>Entity</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '120px' }}>PR Number</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '100px' }}>PR Date</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '120px' }}>PR Amount</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '80px' }}>Currency</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '120px' }}>PO Number</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '100px' }}>PO Date</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '100px' }}>Service Start</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '100px' }}>Service End</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '150px' }}>Vendor</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '120px' }}>PO Value</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '140px' }}>Common Currency Value (INR)</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '120px' }}>Common Currency</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '150px' }}>Remarks</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '100px' }}>Value in Lac</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '100px' }}>Status</TableCell>
+                                <TableCell sx={{ ...excelTableStyles.headerCell, minWidth: '80px' }}>Actions</TableCell>
                             </TableRow>
                             {/* Filter Row */}
-                            <TableRow sx={{ bgcolor: 'grey.50' }}>
-                                <TableCell sx={{ py: 1 }}></TableCell>
-                                <TableCell sx={{ py: 1 }}>
-                                    <TextField
-                                        size="small"
-                                        placeholder="Filter UID..."
-                                        value={filters.uid}
-                                        onChange={(e) => handleFilterChange('uid', e.target.value)}
-                                        fullWidth
-                                        InputProps={{
-                                            startAdornment: (
-                                                <InputAdornment position="start">
-                                                    <FilterList fontSize="small" />
-                                                </InputAdornment>
-                                            ),
-                                        }}
-                                    />
+                            <TableRow>
+                                <TableCell sx={excelTableStyles.filterCell}></TableCell>
+                                <TableCell sx={excelTableStyles.filterCell}>
+                                    <TextField size="small" placeholder="Filter..." value={filters.uid} onChange={(e) => handleFilterChange('uid', e.target.value)} fullWidth sx={excelTableStyles.filterInput} />
                                 </TableCell>
-                                <TableCell sx={{ py: 1 }}>
-                                    <TextField
-                                        size="small"
-                                        placeholder="Filter description..."
-                                        value={filters.service_description}
-                                        onChange={(e) => handleFilterChange('service_description', e.target.value)}
-                                        fullWidth
-                                        InputProps={{
-                                            startAdornment: (
-                                                <InputAdornment position="start">
-                                                    <FilterList fontSize="small" />
-                                                </InputAdornment>
-                                            ),
-                                        }}
-                                    />
+                                <TableCell sx={excelTableStyles.filterCell}>
+                                    <TextField size="small" placeholder="Filter..." value={filters.service_description} onChange={(e) => handleFilterChange('service_description', e.target.value)} fullWidth sx={excelTableStyles.filterInput} />
                                 </TableCell>
-                                <TableCell sx={{ py: 1 }}>
-                                    <TextField
-                                        size="small"
-                                        placeholder="Filter..."
-                                        value={filters.budget_head}
-                                        onChange={(e) => handleFilterChange('budget_head', e.target.value)}
-                                        fullWidth
-                                        InputProps={{
-                                            startAdornment: (
-                                                <InputAdornment position="start">
-                                                    <FilterList fontSize="small" />
-                                                </InputAdornment>
-                                            ),
-                                        }}
-                                    />
+                                <TableCell sx={excelTableStyles.filterCell}>
+                                    <TextField size="small" placeholder="Filter..." value={filters.budget_head} onChange={(e) => handleFilterChange('budget_head', e.target.value)} fullWidth sx={excelTableStyles.filterInput} />
                                 </TableCell>
-                                <TableCell sx={{ py: 1 }}>
-                                    <TextField
-                                        size="small"
-                                        placeholder="Filter..."
-                                        value={filters.entity}
-                                        onChange={(e) => handleFilterChange('entity', e.target.value)}
-                                        fullWidth
-                                        InputProps={{
-                                            startAdornment: (
-                                                <InputAdornment position="start">
-                                                    <FilterList fontSize="small" />
-                                                </InputAdornment>
-                                            ),
-                                        }}
-                                    />
+                                <TableCell sx={excelTableStyles.filterCell}>
+                                    <TextField size="small" placeholder="Filter..." value={filters.entity} onChange={(e) => handleFilterChange('entity', e.target.value)} fullWidth sx={excelTableStyles.filterInput} />
                                 </TableCell>
-                                <TableCell sx={{ py: 1 }}>
-                                    <TextField
-                                        size="small"
-                                        placeholder="Filter PR..."
-                                        value={filters.pr_number}
-                                        onChange={(e) => handleFilterChange('pr_number', e.target.value)}
-                                        fullWidth
-                                        InputProps={{
-                                            startAdornment: (
-                                                <InputAdornment position="start">
-                                                    <FilterList fontSize="small" />
-                                                </InputAdornment>
-                                            ),
-                                        }}
-                                    />
+                                <TableCell sx={excelTableStyles.filterCell}>
+                                    <TextField size="small" placeholder="Filter..." value={filters.pr_number} onChange={(e) => handleFilterChange('pr_number', e.target.value)} fullWidth sx={excelTableStyles.filterInput} />
                                 </TableCell>
-                                <TableCell sx={{ py: 1 }}></TableCell>
-                                <TableCell sx={{ py: 1 }}></TableCell>
-                                <TableCell sx={{ py: 1 }}></TableCell>
-                                <TableCell sx={{ py: 1 }}>
-                                    <TextField
-                                        size="small"
-                                        placeholder="Filter PO..."
-                                        value={filters.po_number}
-                                        onChange={(e) => handleFilterChange('po_number', e.target.value)}
-                                        fullWidth
-                                        InputProps={{
-                                            startAdornment: (
-                                                <InputAdornment position="start">
-                                                    <FilterList fontSize="small" />
-                                                </InputAdornment>
-                                            ),
-                                        }}
-                                    />
+                                <TableCell sx={excelTableStyles.filterCell}></TableCell>
+                                <TableCell sx={excelTableStyles.filterCell}></TableCell>
+                                <TableCell sx={excelTableStyles.filterCell}></TableCell>
+                                <TableCell sx={excelTableStyles.filterCell}>
+                                    <TextField size="small" placeholder="Filter..." value={filters.po_number} onChange={(e) => handleFilterChange('po_number', e.target.value)} fullWidth sx={excelTableStyles.filterInput} />
                                 </TableCell>
-                                <TableCell sx={{ py: 1 }}></TableCell>
-                                <TableCell sx={{ py: 1 }}></TableCell>
-                                <TableCell sx={{ py: 1 }}></TableCell>
-                                <TableCell sx={{ py: 1 }}>
-                                    <TextField
-                                        size="small"
-                                        placeholder="Filter vendor..."
-                                        value={filters.vendor}
-                                        onChange={(e) => handleFilterChange('vendor', e.target.value)}
-                                        fullWidth
-                                        InputProps={{
-                                            startAdornment: (
-                                                <InputAdornment position="start">
-                                                    <FilterList fontSize="small" />
-                                                </InputAdornment>
-                                            ),
-                                        }}
-                                    />
+                                <TableCell sx={excelTableStyles.filterCell}></TableCell>
+                                <TableCell sx={excelTableStyles.filterCell}></TableCell>
+                                <TableCell sx={excelTableStyles.filterCell}></TableCell>
+                                <TableCell sx={excelTableStyles.filterCell}>
+                                    <TextField size="small" placeholder="Filter..." value={filters.vendor} onChange={(e) => handleFilterChange('vendor', e.target.value)} fullWidth sx={excelTableStyles.filterInput} />
                                 </TableCell>
-                                <TableCell sx={{ py: 1 }}></TableCell>
-                                <TableCell sx={{ py: 1 }}></TableCell>
-                                <TableCell sx={{ py: 1 }}></TableCell>
-                                <TableCell sx={{ py: 1 }}>
-                                    <TextField
-                                        size="small"
-                                        placeholder="Filter..."
-                                        value={filters.remarks}
-                                        onChange={(e) => handleFilterChange('remarks', e.target.value)}
-                                        fullWidth
-                                        InputProps={{
-                                            startAdornment: (
-                                                <InputAdornment position="start">
-                                                    <FilterList fontSize="small" />
-                                                </InputAdornment>
-                                            ),
-                                        }}
-                                    />
+                                <TableCell sx={excelTableStyles.filterCell}></TableCell>
+                                <TableCell sx={excelTableStyles.filterCell}></TableCell>
+                                <TableCell sx={excelTableStyles.filterCell}></TableCell>
+                                <TableCell sx={excelTableStyles.filterCell}>
+                                    <TextField size="small" placeholder="Filter..." value={filters.remarks} onChange={(e) => handleFilterChange('remarks', e.target.value)} fullWidth sx={excelTableStyles.filterInput} />
                                 </TableCell>
-                                <TableCell sx={{ py: 1 }}></TableCell>
-                                <TableCell sx={{ py: 1 }}></TableCell>
-                                <TableCell sx={{ py: 1 }}></TableCell>
+                                <TableCell sx={excelTableStyles.filterCell}></TableCell>
+                                <TableCell sx={excelTableStyles.filterCell}></TableCell>
+                                <TableCell sx={excelTableStyles.filterCell}></TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {filteredPOs.map((po) => (
-                                <TableRow key={po.id} hover>
-                                    <TableCell sx={{ fontWeight: 500 }}>FY{new Date(po.po_date).getFullYear() % 100}</TableCell>
-                                    <TableCell sx={{ fontWeight: 500, color: 'primary.main' }}>
-                                        {po.line_items && po.line_items.length > 0 ? po.line_items[0].uid : '-'}
-                                    </TableCell>
-                                    <TableCell>
-                                        {po.line_items && po.line_items.length > 0 ? po.line_items[0].service_description : '-'}
-                                    </TableCell>
-                                    <TableCell>{po.budget_head?.name || '-'}</TableCell>
-                                    <TableCell>{po.po_entity?.name || '-'}</TableCell>
-                                    <TableCell>{po.pr_number || '-'}</TableCell>
-                                    <TableCell>{formatDate(po.pr_date)}</TableCell>
-                                    <TableCell align="right">{formatCurrency(po.pr_amount)}</TableCell>
-                                    <TableCell>{po.currency}</TableCell>
-                                    <TableCell sx={{ fontWeight: 500, color: 'primary.main' }}>{po.po_number}</TableCell>
-                                    <TableCell>{formatDate(po.po_date)}</TableCell>
-                                    <TableCell>{formatDate(po.po_start_date)}</TableCell>
-                                    <TableCell>{formatDate(po.po_end_date)}</TableCell>
-                                    <TableCell>{po.vendor?.name || '-'}</TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 600, color: 'success.main' }}>
-                                        {formatCurrency(po.total_po_value, po.currency)}
-                                    </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 600 }}>
-                                        {formatCurrency(po.common_currency_value || po.total_po_value)}
-                                    </TableCell>
-                                    <TableCell>{po.common_currency}</TableCell>
-                                    <TableCell>{po.remarks || '-'}</TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 600 }}>
-                                        {po.value_in_lac ? `₹${po.value_in_lac.toFixed(2)}L` : '-'}
-                                    </TableCell>
-                                    <TableCell>
+                                <TableRow key={po.id} sx={excelTableStyles.tableRow}>
+                                    <TableCell sx={excelTableStyles.dataCell}>FY{new Date(po.po_date).getFullYear() % 100}</TableCell>
+                                    <TableCell sx={excelTableStyles.dataCell}>{po.line_items && po.line_items.length > 0 ? po.line_items[0].uid : '-'}</TableCell>
+                                    <TableCell sx={excelTableStyles.dataCell}>{po.line_items && po.line_items.length > 0 ? po.line_items[0].service_description : '-'}</TableCell>
+                                    <TableCell sx={excelTableStyles.dataCell}>{po.budget_head?.name || '-'}</TableCell>
+                                    <TableCell sx={excelTableStyles.dataCell}>{po.po_entity?.name || '-'}</TableCell>
+                                    <TableCell sx={excelTableStyles.dataCell}>{po.pr_number || '-'}</TableCell>
+                                    <TableCell sx={excelTableStyles.dataCell}>{formatDate(po.pr_date)}</TableCell>
+                                    <TableCell sx={{ ...excelTableStyles.dataCell, ...excelTableStyles.numericCell }}>{formatCurrency(po.pr_amount)}</TableCell>
+                                    <TableCell sx={excelTableStyles.dataCell}>{po.currency}</TableCell>
+                                    <TableCell sx={excelTableStyles.dataCell}>{po.po_number}</TableCell>
+                                    <TableCell sx={excelTableStyles.dataCell}>{formatDate(po.po_date)}</TableCell>
+                                    <TableCell sx={excelTableStyles.dataCell}>{formatDate(po.po_start_date)}</TableCell>
+                                    <TableCell sx={excelTableStyles.dataCell}>{formatDate(po.po_end_date)}</TableCell>
+                                    <TableCell sx={excelTableStyles.dataCell}>{po.vendor?.name || '-'}</TableCell>
+                                    <TableCell sx={{ ...excelTableStyles.dataCell, ...excelTableStyles.numericCell }}>{formatCurrency(po.total_po_value, po.currency)}</TableCell>
+                                    <TableCell sx={{ ...excelTableStyles.dataCell, ...excelTableStyles.numericCell }}>{formatCurrency(po.common_currency_value || po.total_po_value)}</TableCell>
+                                    <TableCell sx={excelTableStyles.dataCell}>{po.common_currency}</TableCell>
+                                    <TableCell sx={excelTableStyles.dataCell}>{po.remarks || '-'}</TableCell>
+                                    <TableCell sx={{ ...excelTableStyles.dataCell, ...excelTableStyles.numericCell }}>{po.value_in_lac ? `₹${po.value_in_lac.toFixed(2)}L` : '-'}</TableCell>
+                                    <TableCell sx={excelTableStyles.dataCell}>
                                         <Chip
                                             label={po.status}
                                             color={getStatusColor(po.status)}
                                             size="small"
-                                            sx={{ fontWeight: 500 }}
+                                            sx={excelTableStyles.statusChip}
                                         />
                                     </TableCell>
-                                    <TableCell>
-                                        <IconButton
-                                            size="small"
-                                            onClick={() => navigate(`/pos/${po.id}`)}
-                                            color="primary"
-                                        >
-                                            <Visibility fontSize="small" />
-                                        </IconButton>
-                                        <IconButton
-                                            size="small"
-                                            onClick={() => navigate(`/pos/${po.id}/edit`)}
-                                            color="secondary"
-                                        >
-                                            <Edit fontSize="small" />
-                                        </IconButton>
+                                    <TableCell sx={excelTableStyles.dataCell}>
+                                        <Box sx={{ display: 'flex' }}>
+                                            <IconButton size="small" onClick={() => navigate(`/pos/${po.id}`)} color="primary" sx={{ padding: '2px' }}>
+                                                <Visibility fontSize="small" />
+                                            </IconButton>
+                                            {isAdmin && (
+                                                <IconButton size="small" onClick={() => navigate(`/pos/${po.id}/edit`)} color="secondary" sx={{ padding: '2px' }}>
+                                                    <Edit fontSize="small" />
+                                                </IconButton>
+                                            )}
+                                        </Box>
                                     </TableCell>
                                 </TableRow>
                             ))}

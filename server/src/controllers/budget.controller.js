@@ -92,16 +92,43 @@ const getBudgetTracker = async (req, res) => {
             }
         });
 
+        // Calculate totals per UID
+        const uidTotals = {};
+
+        // Helper to calculate actuals for a specific item and year
+        const calculateItemActuals = (item, year) => {
+            return item.actuals_basis
+                .filter(basis => basis.actual_boa.fiscal_year === year)
+                .reduce((sum, basis) => sum + basis.allocated_amount, 0);
+        };
+
+        lineItems.forEach(item => {
+            if (!uidTotals[item.uid]) {
+                uidTotals[item.uid] = {
+                    fy25_budget: 0,
+                    fy25_actuals: 0,
+                    fy26_budget: 0,
+                    fy26_actuals: 0,
+                    fy27_budget: 0,
+                    fy27_actuals: 0
+                };
+            }
+
+            uidTotals[item.uid].fy25_budget += (item.fy25_allocation_amount || 0);
+            uidTotals[item.uid].fy25_actuals += calculateItemActuals(item, 2025);
+            uidTotals[item.uid].fy26_budget += (item.fy26_allocation_amount || 0);
+            uidTotals[item.uid].fy26_actuals += calculateItemActuals(item, 2026);
+            uidTotals[item.uid].fy27_budget += (item.fy27_allocation_amount || 0);
+            uidTotals[item.uid].fy27_actuals += calculateItemActuals(item, 2027);
+        });
+
         const trackerData = lineItems.map(item => {
-            // Dynamically calculate actuals for different fiscal years
-            const calculateActualsForYear = (year) => {
-                return item.actuals_basis
-                    .filter(basis => basis.actual_boa.fiscal_year === year)
-                    .reduce((sum, basis) => sum + basis.allocated_amount, 0);
-            };
+            // Calculate individual item actuals
+            const fy25Actuals = calculateItemActuals(item, 2025);
+            const fy26Actuals = calculateItemActuals(item, 2026);
+            const fy27Actuals = calculateItemActuals(item, 2027);
 
             // Calculate budget for different fiscal years
-            // Use the specific allocation amount fields for each fiscal year
             const fy25Budget = item.fy25_allocation_amount || 0;
             const fy26Budget = item.fy26_allocation_amount || 0;
             const fy27Budget = item.fy27_allocation_amount || 0;
@@ -122,13 +149,21 @@ const getBudgetTracker = async (req, res) => {
                 allocation_basis_name: item.allocation_basis?.name || '-',
                 service_type_name: item.service_type?.name || '-',
 
-                // Dynamic fiscal year data
+                // Dynamic fiscal year data (Individual)
                 fy25_budget: fy25Budget,
-                fy25_actuals: calculateActualsForYear(2025),
+                fy25_actuals: fy25Actuals,
                 fy26_budget: fy26Budget,
-                fy26_actuals: calculateActualsForYear(2026),
+                fy26_actuals: fy26Actuals,
                 fy27_budget: fy27Budget,
-                fy27_actuals: calculateActualsForYear(2027),
+                fy27_actuals: fy27Actuals,
+
+                // UID Totals
+                uid_total_fy25_budget: uidTotals[item.uid].fy25_budget,
+                uid_total_fy25_actuals: uidTotals[item.uid].fy25_actuals,
+                uid_total_fy26_budget: uidTotals[item.uid].fy26_budget,
+                uid_total_fy26_actuals: uidTotals[item.uid].fy26_actuals,
+                uid_total_fy27_budget: uidTotals[item.uid].fy27_budget,
+                uid_total_fy27_actuals: uidTotals[item.uid].fy27_actuals,
 
                 remarks: item.remarks
             };

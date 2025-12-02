@@ -94,6 +94,7 @@ try {
     app.use('/api/actuals', actualsRoutes);
     app.use('/api/line-items', lineItemRoutes);
     app.use('/api/fiscal-years', fiscalYearRoutes);
+    app.use('/api/currency-rates', require('./routes/currencyRate.routes'));
 } catch (error) {
     console.error('Error loading routes:', error);
     process.exit(1);

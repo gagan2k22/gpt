@@ -1,7 +1,7 @@
 const express = require('express');
 const { authenticateToken } = require('../middleware/auth.middleware');
 const { checkPermission } = require('../middleware/permission.middleware');
-const { getPOs, getPOById, createPO, updatePOStatus, getBudgetDetailsByUID } = require('../controllers/po.controller');
+const { getPOs, getPOById, createPO, updatePO, updatePOStatus, getBudgetDetailsByUID } = require('../controllers/po.controller');
 
 const router = express.Router();
 
@@ -14,6 +14,7 @@ router.get('/:id', checkPermission('VIEW_DASHBOARDS'), getPOById);
 
 // Create/Edit PO - Editor, Approver, Admin
 router.post('/', checkPermission('CREATE_PO'), createPO);
+router.put('/:id', checkPermission('EDIT_PO'), updatePO);
 
 // Approve/Reject/Submit PO
 router.put('/:id/status', checkPermission('SUBMIT_PO'), updatePOStatus);

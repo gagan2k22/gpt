@@ -254,6 +254,25 @@ const POCreate = () => {
                                                 InputProps={{ inputProps: { min: 0 } }}
                                             />
                                         </Grid>
+                                        <Grid item xs={12} sm={6}>
+                                            <TextField
+                                                select
+                                                label="Currency"
+                                                name="currency"
+                                                value={poData.currency}
+                                                onChange={handleInputChange}
+                                                fullWidth
+                                                required
+                                            >
+                                                <MenuItem value="INR">INR - Indian Rupee</MenuItem>
+                                                <MenuItem value="USD">USD - US Dollar</MenuItem>
+                                                <MenuItem value="EUR">EUR - Euro</MenuItem>
+                                                <MenuItem value="GBP">GBP - British Pound</MenuItem>
+                                                <MenuItem value="JPY">JPY - Japanese Yen</MenuItem>
+                                                <MenuItem value="AUD">AUD - Australian Dollar</MenuItem>
+                                                <MenuItem value="CAD">CAD - Canadian Dollar</MenuItem>
+                                            </TextField>
+                                        </Grid>
                                         <Grid item xs={12}>
                                             <TextField
                                                 label="Remarks"

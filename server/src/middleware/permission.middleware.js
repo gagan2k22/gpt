@@ -29,7 +29,10 @@ const PERMISSIONS = {
     VIEW_USERS: ['Admin'],
     CREATE_USERS: ['Admin'],
     EDIT_USERS: ['Admin'],
-    DELETE_USERS: ['Admin']
+    DELETE_USERS: ['Admin'],
+
+    // Master Data permissions
+    MANAGE_MASTER_DATA: ['Admin']
 };
 
 /**

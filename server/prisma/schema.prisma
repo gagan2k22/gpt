@@ -23,6 +23,7 @@ model User {
   
   created_pos   PO[]      @relation("CreatedBy")
   approved_pos  PO[]      @relation("ApprovedBy")
+  currency_rates CurrencyRate[] @relation("CurrencyRateUpdatedBy")
   audit_logs    AuditLog[]
 }
 
@@ -202,7 +203,7 @@ model PO {
 
 model LineItem {
   id                     Int       @id @default(autoincrement())
-  uid                    String    @unique // DIT-OPEX FY25-001
+  uid                    String    // DIT-OPEX FY25-001
   parent_uid             String?
   po_id                  Int?
   vendor_id              Int
@@ -293,4 +294,20 @@ model AuditLog {
   timestamp   DateTime @default(now())
 
   user        User     @relation(fields: [user_id], references: [id])
+}
+
+// Currency Management
+model CurrencyRate {
+  id              Int      @id @default(autoincrement())
+  from_currency   String   // e.g., "USD"
+  to_currency     String   // e.g., "INR"
+  rate            Float    // e.g., 83.50
+  effective_date  DateTime @default(now())
+  updated_by_id   Int?
+  updated_by      User?    @relation("CurrencyRateUpdatedBy", fields: [updated_by_id], references: [id])
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  @@unique([from_currency, to_currency])
+  @@index([from_currency, to_currency])
 }

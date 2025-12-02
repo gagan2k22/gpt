@@ -311,3 +311,36 @@ model CurrencyRate {
   @@unique([from_currency, to_currency])
   @@index([from_currency, to_currency])
 }
+
+model ActualBOAData {
+  id                      Int      @id @default(autoincrement())
+  vendor_service          String
+  fiscal_year             String   // FY25 or FY26
+  basis_of_allocation     String?
+  total_count             Float?
+  
+  jpm_corporate           Float?
+  jphi_corporate          Float?
+  biosys_bengaluru        Float?
+  biosys_noida            Float?
+  biosys_greater_noida    Float?
+  pharmova_api            Float?
+  jgl_dosage              Float?
+  jgl_ibp                 Float?
+  cadista_dosage          Float?
+  jdi_radio_pharmaceuticals Float?
+  jdi_radiopharmacies     Float?
+  jhs_gp_cmo              Float?
+  jhs_llc_cmo             Float?
+  jhs_llc_allergy         Float?
+  ingrevia                Float?
+  jil_jacpl               Float?
+  jfl                     Float?
+  consumer                Float?
+  jti                     Float?
+  jogpl                   Float?
+  enpro                   Float?
+
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
+}

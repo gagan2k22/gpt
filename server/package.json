@@ -1,0 +1,36 @@
+{
+  "name": "opex-server",
+  "version": "1.0.0",
+  "description": "Backend for OPEX Management System",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "test": "node test_comprehensive.js",
+    "test:api": "node test_api_endpoints.js",
+    "test:all": "node test_comprehensive.js && node test_api_endpoints.js",
+    "fix": "node fix_database.js",
+    "db:check": "node check_database.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^5.10.2",
+    "bcryptjs": "^2.4.3",
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.3",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^7.0.11"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0",
+    "prisma": "^5.10.2"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  }
+}

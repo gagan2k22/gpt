@@ -1,0 +1,7 @@
+-- AlterTable
+ALTER TABLE "PO" ADD COLUMN "pr_number" TEXT;
+ALTER TABLE "PO" ADD COLUMN "pr_date" DATETIME;
+ALTER TABLE "PO" ADD COLUMN "pr_amount" REAL;
+ALTER TABLE "PO" ADD COLUMN "common_currency" TEXT NOT NULL DEFAULT 'INR';
+ALTER TABLE "PO" ADD COLUMN "common_currency_value" REAL;
+ALTER TABLE "PO" ADD COLUMN "value_in_lac" REAL;

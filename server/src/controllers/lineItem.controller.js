@@ -3,37 +3,40 @@ const prisma = require('../prisma');
 // Get all line items with pagination and optimized queries
 const getLineItems = async (req, res) => {
     try {
-        const { page = 1, limit = 100, uid } = req.query;
+        const { page = 1, limit = 100, uid, include_months } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
 
         const where = uid ? { uid: { contains: uid } } : {};
 
-        // Fetch only necessary fields to reduce memory usage
+        // Build include object based on query params
+        const include = {
+            tower: { select: { id: true, name: true } },
+            budget_head: { select: { id: true, name: true } },
+            vendor: { select: { id: true, name: true } },
+            po_entity: { select: { id: true, name: true } },
+            service_type: { select: { id: true, name: true } },
+            allocation_basis: { select: { id: true, name: true } },
+            po: { select: { id: true, po_number: true } }
+        };
+
+        // Include monthly budgets if requested
+        if (include_months === 'true') {
+            include.months = {
+                select: {
+                    id: true,
+                    month: true,
+                    amount: true
+                },
+                orderBy: {
+                    month: 'asc'
+                }
+            };
+        }
+
+        // Fetch line items
         const lineItems = await prisma.lineItem.findMany({
             where,
-            select: {
-                id: true,
-                uid: true,
-                parent_uid: true,
-                po_id: true,
-                vendor_id: true,
-                service_description: true,
-                service_start_date: true,
-                service_end_date: true,
-                tower_id: true,
-                budget_head_id: true,
-                unit_cost: true,
-                quantity: true,
-                total_cost: true,
-                fy25_allocation_amount: true,
-                tower: { select: { id: true, name: true } },
-                budget_head: { select: { id: true, name: true } },
-                vendor: { select: { id: true, name: true } },
-                po_entity: { select: { id: true, name: true } },
-                service_type: { select: { id: true, name: true } },
-                allocation_basis: { select: { id: true, name: true } },
-                po: { select: { id: true, po_number: true } }
-            },
+            include,
             orderBy: { uid: 'asc' },
             skip: parseInt(skip),
             take: parseInt(limit)

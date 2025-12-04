@@ -3,6 +3,12 @@ import { Box, Grid, Card, CardContent, Typography, Paper, CircularProgress } fro
 import { TrendingUp, TrendingDown, AccountBalance, ShoppingCart } from '@mui/icons-material';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import axios from 'axios';
+import {
+    pageContainerStyles,
+    pageHeaderStyles,
+    pageTitleStyles,
+    pageTransitionStyles
+} from '../styles/commonStyles';
 
 const Dashboard = () => {
     const [loading, setLoading] = useState(true);
@@ -14,8 +20,7 @@ const Dashboard = () => {
     });
 
     const [towerData, setTowerData] = useState([]);
-    const [entityData, setEntityData] = useState([]);
-    const [budgetHeadData, setBudgetHeadData] = useState([]);
+    const [vendorData, setVendorData] = useState([]);
     const [monthlyTrend, setMonthlyTrend] = useState([]);
 
     useEffect(() => {
@@ -28,88 +33,19 @@ const Dashboard = () => {
             if (!token) return;
             const config = { headers: { Authorization: `Bearer ${token}` } };
 
-            // Fetch budget tracker data
-            const trackerRes = await axios.get('/api/budgets/tracker', config);
-            const trackerData = trackerRes.data;
-
-            // Calculate overall stats (FY26 as primary)
-            const totalBudget = trackerData.reduce((sum, item) => sum + (item.fy26_budget || 0), 0);
-            const totalActual = trackerData.reduce((sum, item) => sum + (item.fy26_actuals || 0), 0);
-            const variance = totalBudget - totalActual;
-            const utilizationPercent = totalBudget > 0 ? (totalActual / totalBudget) * 100 : 0;
+            const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/reports/dashboard`, config);
+            const { summary, towerWise, vendorWise, monthlyTrend } = response.data;
 
             setStats({
-                totalBudget,
-                totalActual,
-                variance,
-                utilizationPercent
+                totalBudget: summary.budget,
+                totalActual: summary.actuals,
+                variance: summary.variance,
+                utilizationPercent: summary.utilization
             });
 
-            // Process Tower-wise data
-            const towerMap = {};
-            trackerData.forEach(item => {
-                const tower = item.tower_name || 'Unknown';
-                if (!towerMap[tower]) {
-                    towerMap[tower] = { budget: 0, actual: 0 };
-                }
-                towerMap[tower].budget += (item.fy26_budget || 0);
-                towerMap[tower].actual += (item.fy26_actuals || 0);
-            });
-
-            const processedTowerData = Object.keys(towerMap).map(name => ({
-                name,
-                budget: towerMap[name].budget,
-                actual: towerMap[name].actual,
-                variance: towerMap[name].budget - towerMap[name].actual
-            }));
-            setTowerData(processedTowerData);
-
-            // Process Entity-wise data
-            const entityMap = {};
-            trackerData.forEach(item => {
-                const entity = item.po_entity_name || 'Unassigned';
-                if (!entityMap[entity]) {
-                    entityMap[entity] = { budget: 0, actual: 0 };
-                }
-                entityMap[entity].budget += (item.fy26_budget || 0);
-                entityMap[entity].actual += (item.fy26_actuals || 0);
-            });
-
-            const processedEntityData = Object.keys(entityMap).map(name => ({
-                name,
-                budget: entityMap[name].budget,
-                actual: entityMap[name].actual,
-                variance: entityMap[name].budget - entityMap[name].actual
-            }));
-            setEntityData(processedEntityData);
-
-            // Process Budget Head-wise data
-            const budgetHeadMap = {};
-            trackerData.forEach(item => {
-                const head = item.budget_head_name || 'Unknown';
-                if (!budgetHeadMap[head]) {
-                    budgetHeadMap[head] = { budget: 0, actual: 0 };
-                }
-                budgetHeadMap[head].budget += (item.fy26_budget || 0);
-                budgetHeadMap[head].actual += (item.fy26_actuals || 0);
-            });
-
-            const processedBudgetHeadData = Object.keys(budgetHeadMap).map(name => ({
-                name,
-                budget: budgetHeadMap[name].budget,
-                actual: budgetHeadMap[name].actual,
-                variance: budgetHeadMap[name].budget - budgetHeadMap[name].actual
-            }));
-            setBudgetHeadData(processedBudgetHeadData);
-
-            // Create monthly trend (simulated - you can enhance this with actual monthly data)
-            const monthNames = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
-            const monthlyData = monthNames.map((month, index) => ({
-                month,
-                budget: totalBudget / 12,
-                actual: (totalActual / 12) * (index + 1) / 12 // Simulated cumulative
-            }));
-            setMonthlyTrend(monthlyData);
+            setTowerData(towerWise);
+            setVendorData(vendorWise);
+            setMonthlyTrend(monthlyTrend);
 
             setLoading(false);
         } catch (error) {
@@ -169,16 +105,18 @@ const Dashboard = () => {
     }
 
     return (
-        <Box>
-            <Typography variant="h4" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
-                Dashboard Overview - FY26
-            </Typography>
+        <Box sx={{ ...pageContainerStyles, ...pageTransitionStyles }}>
+            <Box sx={pageHeaderStyles}>
+                <Typography sx={pageTitleStyles}>
+                    Dashboard Overview
+                </Typography>
+            </Box>
 
             {/* Stats Cards */}
             <Grid container spacing={3} sx={{ mb: 4 }}>
                 <Grid item xs={12} sm={6} md={3}>
                     <StatCard
-                        title="Total Budget FY26"
+                        title="Total Budget"
                         value={stats.totalBudget}
                         icon={<AccountBalance />}
                         color="primary"
@@ -186,7 +124,7 @@ const Dashboard = () => {
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
                     <StatCard
-                        title="Total Actual FY26"
+                        title="Total Actuals"
                         value={stats.totalActual}
                         icon={<TrendingUp />}
                         trend={stats.utilizationPercent - 100}
@@ -234,47 +172,26 @@ const Dashboard = () => {
                                 <Tooltip formatter={(value) => formatCurrency(value)} />
                                 <Legend />
                                 <Bar dataKey="budget" fill="#8884d8" name="Budget" />
-                                <Bar dataKey="actual" fill="#82ca9d" name="Actual" />
+                                <Bar dataKey="actuals" fill="#82ca9d" name="Actuals" />
                             </BarChart>
                         </ResponsiveContainer>
                     </Paper>
                 </Grid>
 
-                {/* Entity-wise Budget vs Actual */}
+                {/* Vendor-wise Spend (Top 10) */}
                 <Grid item xs={12} lg={6}>
                     <Paper elevation={2} sx={{ p: 3, height: '400px' }}>
                         <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-                            Entity-wise Budget vs Actual
+                            Top 10 Vendors by Spend
                         </Typography>
                         <ResponsiveContainer width="100%" height="90%">
-                            <BarChart data={entityData}>
+                            <BarChart data={vendorData} layout="vertical">
                                 <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
-                                <YAxis tickFormatter={formatCurrency} />
+                                <XAxis type="number" tickFormatter={formatCurrency} />
+                                <YAxis dataKey="name" type="category" width={150} />
                                 <Tooltip formatter={(value) => formatCurrency(value)} />
                                 <Legend />
-                                <Bar dataKey="budget" fill="#0088FE" name="Budget" />
-                                <Bar dataKey="actual" fill="#00C49F" name="Actual" />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </Paper>
-                </Grid>
-
-                {/* Budget Head-wise Budget vs Actual */}
-                <Grid item xs={12} lg={8}>
-                    <Paper elevation={2} sx={{ p: 3, height: '400px' }}>
-                        <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-                            Budget Head-wise Budget vs Actual
-                        </Typography>
-                        <ResponsiveContainer width="100%" height="90%">
-                            <BarChart data={budgetHeadData}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
-                                <YAxis tickFormatter={formatCurrency} />
-                                <Tooltip formatter={(value) => formatCurrency(value)} />
-                                <Legend />
-                                <Bar dataKey="budget" fill="#FFBB28" name="Budget" />
-                                <Bar dataKey="actual" fill="#FF8042" name="Actual" />
+                                <Bar dataKey="spend" fill="#0088FE" name="Spend" />
                             </BarChart>
                         </ResponsiveContainer>
                     </Paper>
@@ -309,10 +226,10 @@ const Dashboard = () => {
                 </Grid>
 
                 {/* Monthly Trend */}
-                <Grid item xs={12}>
+                <Grid item xs={12} lg={8}>
                     <Paper elevation={2} sx={{ p: 3, height: '400px' }}>
                         <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-                            Budget vs Actual Trend (FY26)
+                            Monthly Spend Trend
                         </Typography>
                         <ResponsiveContainer width="100%" height="90%">
                             <LineChart data={monthlyTrend}>
@@ -321,8 +238,7 @@ const Dashboard = () => {
                                 <YAxis tickFormatter={formatCurrency} />
                                 <Tooltip formatter={(value) => formatCurrency(value)} />
                                 <Legend />
-                                <Line type="monotone" dataKey="budget" stroke="#8884d8" strokeWidth={2} name="Budget" />
-                                <Line type="monotone" dataKey="actual" stroke="#82ca9d" strokeWidth={2} name="Actual" />
+                                <Line type="monotone" dataKey="amount" stroke="#82ca9d" strokeWidth={2} name="Actuals" />
                             </LineChart>
                         </ResponsiveContainer>
                     </Paper>

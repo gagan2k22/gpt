@@ -9,7 +9,14 @@ import { Add, Download, Close, Upload, FilterList, Clear, FileDownload, Edit } f
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 import { excelTableStyles } from '../styles/excelTableStyles';
+import {
+    pageContainerStyles,
+    pageHeaderStyles,
+    pageTitleStyles,
+    pageTransitionStyles
+} from '../styles/commonStyles';
 import { useIsAdmin } from '../hooks/usePermissions';
+import ImportModal from '../components/ImportModal';
 
 const BudgetList = () => {
     const [budgets, setBudgets] = useState([]);
@@ -19,6 +26,7 @@ const BudgetList = () => {
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
     const [openManageFYDialog, setOpenManageFYDialog] = useState(false);
     const [allFiscalYears, setAllFiscalYears] = useState([]); // For admin management
+    const [openImportModal, setOpenImportModal] = useState(false);
     const isAdmin = useIsAdmin(); // Check if user is admin
 
     // Fiscal Year Selection
@@ -445,12 +453,21 @@ const BudgetList = () => {
     }
 
     return (
-        <Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h5" sx={{ fontWeight: 600, color: 'primary.main' }}>
+        <Box sx={{ ...pageContainerStyles, ...pageTransitionStyles }}>
+            <Box sx={pageHeaderStyles}>
+                <Typography sx={pageTitleStyles}>
                     Budget Tracker
                 </Typography>
-                <Box sx={{ display: 'flex', gap: 1 }}>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<Edit />}
+                        onClick={() => window.location.href = '/budgets/monthly'}
+                        color="info"
+                    >
+                        Monthly Editor
+                    </Button>
                     <Button
                         size="small"
                         variant="outlined"
@@ -468,6 +485,15 @@ const BudgetList = () => {
                         color="success"
                     >
                         Export to Excel
+                    </Button>
+                    <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<Upload />}
+                        onClick={() => setOpenImportModal(true)}
+                        color="primary"
+                    >
+                        Import Budget
                     </Button>
                     <Button
                         size="small"
@@ -637,7 +663,18 @@ const BudgetList = () => {
                         <TableBody>
                             {filteredBudgets.map((row) => (
                                 <TableRow key={row.id} sx={excelTableStyles.tableRow}>
-                                    <TableCell sx={excelTableStyles.dataCell}>{row.uid}</TableCell>
+                                    <TableCell
+                                        sx={{
+                                            ...excelTableStyles.dataCell,
+                                            cursor: 'pointer',
+                                            color: 'primary.main',
+                                            textDecoration: 'underline',
+                                            '&:hover': { color: 'primary.dark' }
+                                        }}
+                                        onClick={() => window.location.href = `/budgets/${row.uid}`}
+                                    >
+                                        {row.uid}
+                                    </TableCell>
                                     <TableCell sx={excelTableStyles.dataCell}>{row.parent_uid || '-'}</TableCell>
                                     <TableCell sx={excelTableStyles.dataCell}>{row.vendor_name}</TableCell>
                                     <TableCell sx={excelTableStyles.dataCell}>{row.service_description}</TableCell>
@@ -1108,6 +1145,16 @@ const BudgetList = () => {
                     <Button onClick={() => setOpenManageFYDialog(false)}>Close</Button>
                 </DialogActions>
             </Dialog >
+
+            {/* Import Modal */}
+            <ImportModal
+                open={openImportModal}
+                onClose={() => setOpenImportModal(false)}
+                onSuccess={(result) => {
+                    showSnackbar(`Successfully imported ${result.imported} line items`, 'success');
+                    fetchBudgets();
+                }}
+            />
         </Box >
     );
 };

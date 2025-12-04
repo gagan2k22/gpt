@@ -1,22 +1,43 @@
-import React from 'react';
-import { Box, Drawer, AppBar, Toolbar, List, Typography, Divider, ListItem, ListItemButton, ListItemIcon, ListItemText, IconButton, Avatar, Menu, MenuItem, useTheme } from '@mui/material';
-import { Dashboard, AccountBalance, ShoppingCart, BarChart, Settings, Logout, Menu as MenuIcon, Person, ChevronLeft, Security as SecurityIcon } from '@mui/icons-material';
+import React, { useState } from 'react';
+import {
+    Box,
+    AppBar,
+    Toolbar,
+    Typography,
+    Tabs,
+    Tab,
+    IconButton,
+    Avatar,
+    Menu,
+    MenuItem,
+    Button,
+    Divider,
+    useTheme,
+    useMediaQuery
+} from '@mui/material';
+import {
+    Dashboard as DashboardIcon,
+    AccountBalance,
+    ShoppingCart,
+    BarChart,
+    Settings as SettingsIcon,
+    Logout,
+    Person,
+    ArrowDropDown,
+    Security as SecurityIcon,
+    Storage
+} from '@mui/icons-material';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-
-const drawerWidth = 260;
 
 const Layout = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const { logout, user } = useAuth();
-    const [mobileOpen, setMobileOpen] = React.useState(false);
-    const [anchorEl, setAnchorEl] = React.useState(null);
-
-    const handleDrawerToggle = () => {
-        setMobileOpen(!mobileOpen);
-    };
+    const [anchorEl, setAnchorEl] = useState(null);
+    const [settingsAnchorEl, setSettingsAnchorEl] = useState(null);
 
     const handleMenu = (event) => {
         setAnchorEl(event.currentTarget);
@@ -31,165 +52,224 @@ const Layout = () => {
         logout();
     };
 
-    const menuItems = [
-        { text: 'Dashboard', icon: <Dashboard />, path: '/' },
-        { text: 'Budgets', icon: <AccountBalance />, path: '/budgets' },
-        { text: 'Purchase Orders', icon: <ShoppingCart />, path: '/pos' },
-        { text: 'Actuals', icon: <BarChart />, path: '/actuals' },
-        { text: 'Master Data', icon: <Settings />, path: '/master-data' },
+    const handleSettingsClick = (event) => {
+        setSettingsAnchorEl(event.currentTarget);
+    };
+
+    const handleSettingsClose = () => {
+        setSettingsAnchorEl(null);
+    };
+
+    const handleSettingsNavigate = (path) => {
+        navigate(path);
+        handleSettingsClose();
+    };
+
+    // Main navigation tabs
+    const mainTabs = [
+        { label: 'Dashboard', path: '/', icon: <DashboardIcon sx={{ mr: 1 }} /> },
+        { label: 'Budgets', path: '/budgets', icon: <AccountBalance sx={{ mr: 1 }} /> },
+        { label: 'Purchase Orders', path: '/pos', icon: <ShoppingCart sx={{ mr: 1 }} /> },
+        { label: 'Actuals', path: '/actuals', icon: <BarChart sx={{ mr: 1 }} /> },
+        { label: 'Actual BOA', path: '/actual-boa', icon: <BarChart sx={{ mr: 1 }} /> },
+        { label: 'Budget BOA', path: '/budget-boa', icon: <AccountBalance sx={{ mr: 1 }} /> },
+        { label: 'Import History', path: '/imports', icon: <Storage sx={{ mr: 1 }} /> },
     ];
 
-    if (user && user.roles && user.roles.includes('Admin')) {
-        menuItems.push({ text: 'User Management', icon: <SecurityIcon />, path: '/users' });
-    }
+    // Get current tab value
+    const getCurrentTab = () => {
+        const currentPath = location.pathname;
+        const tabIndex = mainTabs.findIndex(tab => tab.path === currentPath);
+        return tabIndex !== -1 ? tabIndex : false;
+    };
 
-    const drawer = (
-        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: 'background.paper' }}>
-            <Toolbar sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', px: [1], bgcolor: 'primary.main', color: 'white' }}>
-                <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 700, letterSpacing: 1 }}>
-                    OPEX MANAGER
-                </Typography>
-            </Toolbar>
-            <Divider />
-            <List sx={{ flexGrow: 1, pt: 2 }}>
-                {menuItems.map((item) => {
-                    const active = location.pathname === item.path;
-                    return (
-                        <ListItem key={item.text} disablePadding sx={{ mb: 1, px: 2 }}>
-                            <ListItemButton
-                                onClick={() => navigate(item.path)}
-                                selected={active}
-                                sx={{
-                                    borderRadius: 2,
-                                    '&.Mui-selected': {
-                                        bgcolor: 'primary.light',
-                                        color: 'white',
-                                        '&:hover': {
-                                            bgcolor: 'primary.main',
-                                        },
-                                        '& .MuiListItemIcon-root': {
-                                            color: 'white',
-                                        },
-                                    },
-                                    '&:hover': {
-                                        bgcolor: 'action.hover',
-                                    },
-                                }}
-                            >
-                                <ListItemIcon sx={{ minWidth: 40, color: active ? 'white' : 'text.secondary' }}>
-                                    {item.icon}
-                                </ListItemIcon>
-                                <ListItemText
-                                    primary={item.text}
-                                    primaryTypographyProps={{ fontWeight: active ? 600 : 400 }}
-                                />
-                            </ListItemButton>
-                        </ListItem>
-                    );
-                })}
-            </List>
-            <Divider />
-            <Box sx={{ p: 2 }}>
-                <Typography variant="caption" color="text.secondary" align="center" display="block">
-                    v1.0.0
-                </Typography>
-            </Box>
-        </Box>
-    );
+    const handleTabChange = (event, newValue) => {
+        if (newValue !== false) {
+            navigate(mainTabs[newValue].path);
+        }
+    };
 
     return (
-        <Box sx={{ display: 'flex', bgcolor: 'background.default', minHeight: '100vh' }}>
-            <AppBar
-                position="fixed"
-                sx={{
-                    width: { sm: `calc(100% - ${drawerWidth}px)` },
-                    ml: { sm: `${drawerWidth}px` },
-                    bgcolor: 'background.paper',
-                    color: 'text.primary',
-                    boxShadow: 1,
-                }}
-            >
-                <Toolbar>
-                    <IconButton
-                        color="inherit"
-                        aria-label="open drawer"
-                        edge="start"
-                        onClick={handleDrawerToggle}
-                        sx={{ mr: 2, display: { sm: 'none' } }}
+        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+            {/* Top AppBar */}
+            <AppBar position="static" elevation={2} sx={{ maxHeight: '48px', minHeight: '48px' }}>
+                <Toolbar sx={{ justifyContent: 'space-between', minHeight: '48px !important', maxHeight: '48px', py: 0 }}>
+                    {/* Logo/Brand */}
+                    <Typography
+                        variant="h6"
+                        component="div"
+                        sx={{
+                            fontWeight: 700,
+                            letterSpacing: 1,
+                            mr: 4,
+                            display: 'flex',
+                            alignItems: 'center',
+                            cursor: 'pointer',
+                            fontSize: '1rem'
+                        }}
+                        onClick={() => navigate('/')}
                     >
-                        <MenuIcon />
-                    </IconButton>
-                    <Box sx={{ flexGrow: 1 }} />
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <Typography variant="subtitle2" sx={{ mr: 2, fontWeight: 600 }}>
-                            {user ? user.name : 'User'}
+                        OPEX MANAGER
+                    </Typography>
+
+                    {/* Navigation Tabs - Hidden on mobile */}
+                    {!isMobile && (
+                        <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}>
+                            <Tabs
+                                value={getCurrentTab()}
+                                onChange={handleTabChange}
+                                textColor="inherit"
+                                TabIndicatorProps={{
+                                    style: { backgroundColor: '#4caf50', height: 3 }
+                                }}
+                                sx={{
+                                    minHeight: '48px',
+                                    '& .MuiTab-root': {
+                                        color: 'white',
+                                        fontWeight: 500,
+                                        minHeight: '48px',
+                                        maxHeight: '48px',
+                                        py: 0,
+                                        fontSize: '0.875rem',
+                                        '&.Mui-selected': {
+                                            color: '#4caf50',
+                                            fontWeight: 600,
+                                            backgroundColor: '#0d47a1',
+                                        },
+                                        '&:hover': {
+                                            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                                        }
+                                    }
+                                }}
+                            >
+                                {mainTabs.map((tab, index) => (
+                                    <Tab
+                                        key={index}
+                                        label={
+                                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                                {React.cloneElement(tab.icon, {
+                                                    sx: { mr: 0.5, fontSize: '1.1rem' }
+                                                })}
+                                                {tab.label}
+                                            </Box>
+                                        }
+                                    />
+                                ))}
+                            </Tabs>
+
+                            {/* Settings Dropdown */}
+                            <Button
+                                color="inherit"
+                                onClick={handleSettingsClick}
+                                endIcon={<ArrowDropDown sx={{ fontSize: '1.1rem' }} />}
+                                startIcon={<SettingsIcon sx={{ fontSize: '1.1rem' }} />}
+                                sx={{
+                                    ml: 2,
+                                    color: 'white',
+                                    fontWeight: 500,
+                                    fontSize: '0.875rem',
+                                    minHeight: '48px',
+                                    maxHeight: '48px',
+                                    py: 0,
+                                    px: 2,
+                                    '&:hover': {
+                                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                                    },
+                                    ...(location.pathname === '/master-data' || location.pathname === '/users' ? {
+                                        color: '#4caf50',
+                                        fontWeight: 600,
+                                        backgroundColor: '#0d47a1',
+                                        borderBottom: '3px solid #4caf50',
+                                    } : {}),
+                                    borderRadius: 0,
+                                }}
+                            >
+                                Settings
+                            </Button>
+                            <Menu
+                                anchorEl={settingsAnchorEl}
+                                open={Boolean(settingsAnchorEl)}
+                                onClose={handleSettingsClose}
+                                anchorOrigin={{
+                                    vertical: 'bottom',
+                                    horizontal: 'right',
+                                }}
+                                transformOrigin={{
+                                    vertical: 'top',
+                                    horizontal: 'right',
+                                }}
+                            >
+                                <MenuItem
+                                    onClick={() => handleSettingsNavigate('/master-data')}
+                                    selected={location.pathname === '/master-data'}
+                                >
+                                    <Storage sx={{ mr: 2 }} />
+                                    Master Data
+                                </MenuItem>
+                                {user && user.roles && user.roles.includes('Admin') && (
+                                    <MenuItem
+                                        onClick={() => handleSettingsNavigate('/users')}
+                                        selected={location.pathname === '/users'}
+                                    >
+                                        <SecurityIcon sx={{ mr: 2 }} />
+                                        User Management
+                                    </MenuItem>
+                                )}
+                            </Menu>
+                        </Box>
+                    )}
+
+                    {/* User Menu */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' }, fontSize: '0.875rem' }}>
+                            {user?.username || 'User'}
                         </Typography>
                         <IconButton
-                            size="large"
-                            aria-label="account of current user"
-                            aria-controls="menu-appbar"
-                            aria-haspopup="true"
+                            size="small"
                             onClick={handleMenu}
                             color="inherit"
+                            sx={{ p: 0.5 }}
                         >
-                            <Avatar sx={{ bgcolor: 'secondary.main', width: 32, height: 32 }}>
-                                {user ? user.name.charAt(0).toUpperCase() : <Person />}
+                            <Avatar sx={{ width: 28, height: 28, bgcolor: 'secondary.main' }}>
+                                <Person sx={{ fontSize: '1rem' }} />
                             </Avatar>
                         </IconButton>
                         <Menu
-                            id="menu-appbar"
                             anchorEl={anchorEl}
+                            open={Boolean(anchorEl)}
+                            onClose={handleClose}
                             anchorOrigin={{
                                 vertical: 'bottom',
                                 horizontal: 'right',
                             }}
-                            keepMounted
                             transformOrigin={{
                                 vertical: 'top',
                                 horizontal: 'right',
                             }}
-                            open={Boolean(anchorEl)}
-                            onClose={handleClose}
                         >
-                            <MenuItem onClick={handleClose}>Profile</MenuItem>
-                            <MenuItem onClick={handleLogout}>Logout</MenuItem>
+                            <MenuItem disabled>
+                                <Person sx={{ mr: 2 }} />
+                                {user?.username}
+                            </MenuItem>
+                            <Divider />
+                            <MenuItem onClick={handleLogout}>
+                                <Logout sx={{ mr: 2 }} />
+                                Logout
+                            </MenuItem>
                         </Menu>
                     </Box>
                 </Toolbar>
             </AppBar>
-            <Box
-                component="nav"
-                sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
-                aria-label="mailbox folders"
-            >
-                <Drawer
-                    variant="temporary"
-                    open={mobileOpen}
-                    onClose={handleDrawerToggle}
-                    ModalProps={{ keepMounted: true }}
-                    sx={{
-                        display: { xs: 'block', sm: 'none' },
-                        '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
-                    }}
-                >
-                    {drawer}
-                </Drawer>
-                <Drawer
-                    variant="permanent"
-                    sx={{
-                        display: { xs: 'none', sm: 'block' },
-                        '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth, borderRight: 'none', boxShadow: 3 },
-                    }}
-                    open
-                >
-                    {drawer}
-                </Drawer>
-            </Box>
+
+            {/* Main Content Area */}
             <Box
                 component="main"
-                sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${drawerWidth}px)` } }}
+                sx={{
+                    flexGrow: 1,
+                    overflow: 'auto',
+                    bgcolor: 'background.default',
+                }}
             >
-                <Toolbar />
                 <Outlet />
             </Box>
         </Box>

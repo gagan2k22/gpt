@@ -37,9 +37,11 @@ exports.createActualBOA = async (req, res) => {
 exports.updateActualBOA = async (req, res) => {
     try {
         const { id } = req.params;
+        const { id: _, created_at, updated_at, ...updateData } = req.body;
+
         const updatedData = await prisma.actualBOAData.update({
             where: { id: parseInt(id) },
-            data: req.body,
+            data: updateData,
         });
         res.json(updatedData);
     } catch (error) {

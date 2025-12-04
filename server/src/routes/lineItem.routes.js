@@ -2,6 +2,7 @@ const express = require('express');
 const { authenticateToken } = require('../middleware/auth.middleware');
 const { checkPermission } = require('../middleware/permission.middleware');
 const { getLineItems, createLineItem, updateLineItem, deleteLineItem } = require('../controllers/lineItem.controller');
+const { updateLineItemMonths } = require('../controllers/lineItemMonth.controller');
 
 const router = express.Router();
 
@@ -9,6 +10,9 @@ router.use(authenticateToken);
 
 // View line items - All authenticated users
 router.get('/', checkPermission('VIEW_DASHBOARDS'), getLineItems);
+
+// Update monthly budgets
+router.put('/:id/months', checkPermission('EDIT_LINE_ITEMS'), updateLineItemMonths);
 
 // Create/Edit/Delete line items - Editor, Approver, Admin
 router.post('/', checkPermission('CREATE_LINE_ITEMS'), createLineItem);

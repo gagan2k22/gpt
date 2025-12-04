@@ -3,6 +3,8 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const compression = require('compression');
 const helmet = require('helmet');
+const activityLogger = require('./middleware/activityLog.middleware');
+const { initCronJobs } = require('./utils/cronJobs');
 
 dotenv.config();
 
@@ -38,6 +40,14 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+// Global Rate Limiting
+const { apiLimiter } = require('./middleware/rateLimiter.middleware');
+app.use('/api', apiLimiter);
+
+// Input Sanitization
+const { sanitizeInput } = require('./middleware/validation.middleware');
+app.use(sanitizeInput);
+
 // Body parsing middleware with size limits
 app.use(express.json({ limit: '5mb' })); // Reduced from 10mb
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
@@ -56,6 +66,25 @@ if (process.env.NODE_ENV === 'development') {
         next();
     });
 }
+
+// Activity Logger Middleware
+// Note: This must be placed AFTER body parsing middleware to capture request details
+// and ideally AFTER authentication if we want to log user details (which we do).
+// However, since auth is handled in routes, we might miss the user info if placed here globally
+// unless we extract user info from token manually or rely on it being available.
+// Actually, `activityLogger` checks `req.user`. If `authenticateToken` is used in routes,
+// `req.user` is set there. But global middleware runs BEFORE route-specific middleware.
+// So `req.user` will be undefined here for most requests unless we have a global auth middleware.
+// To fix this, we should probably add a global token parser (non-blocking) or rely on `activityLogger`
+// being smart enough.
+// BETTER APPROACH: Let's add a global "attempt to extract user" middleware before this,
+// OR just accept that `req.user` might be null for now if we don't have global auth.
+// Given the current structure, let's place it here. It will log anonymous for now,
+// but we can improve it by adding a global token decoder if needed.
+// WAIT: The routes use `authenticateToken`. If we put this here, it runs BEFORE the route handler
+// but the `res.end` hook runs AFTER the route handler (and after `authenticateToken` has run).
+// So `req.user` SHOULD be available in the `res.end` callback!
+app.use(activityLogger);
 
 // Health check endpoint
 app.get('/', (req, res) => {
@@ -92,10 +121,15 @@ try {
     app.use('/api/budgets', budgetRoutes);
     app.use('/api/pos', poRoutes);
     app.use('/api/actuals', actualsRoutes);
+    app.use('/api/actuals', require('./routes/actualsImport.routes')); // Mount on same base path
     app.use('/api/line-items', lineItemRoutes);
     app.use('/api/fiscal-years', fiscalYearRoutes);
+    app.use('/api/reports', require('./routes/reports.routes'));
+    app.use('/api/imports', require('./routes/importHistory.routes'));
     app.use('/api/currency-rates', require('./routes/currencyRate.routes'));
     app.use('/api/actual-boa', require('./routes/actualBOA.routes'));
+    app.use('/api/budget-boa', require('./routes/budgetBOA.routes'));
+    app.use('/api/budget-detail', require('./routes/budgetDetail.routes'));
 
 } catch (error) {
     console.error('Error loading routes:', error);
@@ -166,6 +200,9 @@ try {
         console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
         console.log(`✓ Time: ${new Date().toISOString()}`);
         console.log('='.repeat(50));
+
+        // Initialize Cron Jobs
+        initCronJobs();
     });
 
     server.on('error', (error) => {

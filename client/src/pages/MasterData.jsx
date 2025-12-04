@@ -6,6 +6,12 @@ import {
 } from '@mui/material';
 import { Edit, Delete, Add } from '@mui/icons-material';
 import axios from 'axios';
+import {
+    pageContainerStyles,
+    pageHeaderStyles,
+    pageTitleStyles,
+    pageTransitionStyles
+} from '../styles/commonStyles';
 
 const MasterData = () => {
     const [tab, setTab] = useState(0);
@@ -121,10 +127,12 @@ const MasterData = () => {
     };
 
     return (
-        <Box>
-            <Typography variant="h4" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
-                Master Data Management
-            </Typography>
+        <Box sx={{ ...pageContainerStyles, ...pageTransitionStyles }}>
+            <Box sx={pageHeaderStyles}>
+                <Typography sx={pageTitleStyles}>
+                    Master Data Management
+                </Typography>
+            </Box>
 
             <Paper elevation={2}>
                 <Tabs value={tab} onChange={(e, v) => setTab(v)} sx={{ borderBottom: 1, borderColor: 'divider' }} variant="scrollable" scrollButtons="auto">
@@ -143,14 +151,14 @@ const MasterData = () => {
                         <Table>
                             <TableHead>
                                 <TableRow sx={{ backgroundColor: 'primary.main' }}>
-                                    <TableCell sx={{ fontWeight: 600, color: 'white' }}>ID</TableCell>
+                                    <TableCell sx={{ fontWeight: 600, color: 'white' }}>Sr. No.</TableCell>
                                     <TableCell sx={{ fontWeight: 600, color: 'white' }}>Name</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {towers.map((tower) => (
+                                {towers.map((tower, index) => (
                                     <TableRow key={tower.id} hover>
-                                        <TableCell>{tower.id}</TableCell>
+                                        <TableCell>{index + 1}</TableCell>
                                         <TableCell>{tower.name}</TableCell>
                                     </TableRow>
                                 ))}
@@ -164,15 +172,15 @@ const MasterData = () => {
                         <Table>
                             <TableHead>
                                 <TableRow sx={{ backgroundColor: 'primary.main' }}>
-                                    <TableCell sx={{ fontWeight: 600, color: 'white' }}>ID</TableCell>
+                                    <TableCell sx={{ fontWeight: 600, color: 'white' }}>Sr. No.</TableCell>
                                     <TableCell sx={{ fontWeight: 600, color: 'white' }}>Name</TableCell>
                                     <TableCell sx={{ fontWeight: 600, color: 'white' }}>Tower</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {budgetHeads.map((head) => (
+                                {budgetHeads.map((head, index) => (
                                     <TableRow key={head.id} hover>
-                                        <TableCell>{head.id}</TableCell>
+                                        <TableCell>{index + 1}</TableCell>
                                         <TableCell>{head.name}</TableCell>
                                         <TableCell>{head.tower?.name}</TableCell>
                                     </TableRow>
@@ -187,16 +195,16 @@ const MasterData = () => {
                         <Table>
                             <TableHead>
                                 <TableRow sx={{ backgroundColor: 'primary.main' }}>
-                                    <TableCell sx={{ fontWeight: 600, color: 'white' }}>ID</TableCell>
+                                    <TableCell sx={{ fontWeight: 600, color: 'white' }}>Sr. No.</TableCell>
                                     <TableCell sx={{ fontWeight: 600, color: 'white' }}>Name</TableCell>
                                     <TableCell sx={{ fontWeight: 600, color: 'white' }}>GST Number</TableCell>
                                     <TableCell sx={{ fontWeight: 600, color: 'white' }}>Contact Person</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {vendors.map((vendor) => (
+                                {vendors.map((vendor, index) => (
                                     <TableRow key={vendor.id} hover>
-                                        <TableCell>{vendor.id}</TableCell>
+                                        <TableCell>{index + 1}</TableCell>
                                         <TableCell>{vendor.name}</TableCell>
                                         <TableCell>{vendor.gst_number || '-'}</TableCell>
                                         <TableCell>{vendor.contact_person || '-'}</TableCell>
@@ -212,15 +220,15 @@ const MasterData = () => {
                         <Table>
                             <TableHead>
                                 <TableRow sx={{ backgroundColor: 'primary.main' }}>
-                                    <TableCell sx={{ fontWeight: 600, color: 'white' }}>ID</TableCell>
+                                    <TableCell sx={{ fontWeight: 600, color: 'white' }}>Sr. No.</TableCell>
                                     <TableCell sx={{ fontWeight: 600, color: 'white' }}>Code</TableCell>
                                     <TableCell sx={{ fontWeight: 600, color: 'white' }}>Description</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {costCentres.map((cc) => (
+                                {costCentres.map((cc, index) => (
                                     <TableRow key={cc.id} hover>
-                                        <TableCell>{cc.id}</TableCell>
+                                        <TableCell>{index + 1}</TableCell>
                                         <TableCell>{cc.code}</TableCell>
                                         <TableCell>{cc.description || '-'}</TableCell>
                                     </TableRow>
@@ -235,14 +243,14 @@ const MasterData = () => {
                         <Table>
                             <TableHead>
                                 <TableRow sx={{ backgroundColor: 'primary.main' }}>
-                                    <TableCell sx={{ fontWeight: 600, color: 'white' }}>ID</TableCell>
+                                    <TableCell sx={{ fontWeight: 600, color: 'white' }}>Sr. No.</TableCell>
                                     <TableCell sx={{ fontWeight: 600, color: 'white' }}>Name</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {poEntities.map((entity) => (
+                                {poEntities.map((entity, index) => (
                                     <TableRow key={entity.id} hover>
-                                        <TableCell>{entity.id}</TableCell>
+                                        <TableCell>{index + 1}</TableCell>
                                         <TableCell>{entity.name}</TableCell>
                                     </TableRow>
                                 ))}
@@ -256,14 +264,14 @@ const MasterData = () => {
                         <Table>
                             <TableHead>
                                 <TableRow sx={{ backgroundColor: 'primary.main' }}>
-                                    <TableCell sx={{ fontWeight: 600, color: 'white' }}>ID</TableCell>
+                                    <TableCell sx={{ fontWeight: 600, color: 'white' }}>Sr. No.</TableCell>
                                     <TableCell sx={{ fontWeight: 600, color: 'white' }}>Name</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {serviceTypes.map((type) => (
+                                {serviceTypes.map((type, index) => (
                                     <TableRow key={type.id} hover>
-                                        <TableCell>{type.id}</TableCell>
+                                        <TableCell>{index + 1}</TableCell>
                                         <TableCell>{type.name}</TableCell>
                                     </TableRow>
                                 ))}
@@ -277,14 +285,14 @@ const MasterData = () => {
                         <Table>
                             <TableHead>
                                 <TableRow sx={{ backgroundColor: 'primary.main' }}>
-                                    <TableCell sx={{ fontWeight: 600, color: 'white' }}>ID</TableCell>
+                                    <TableCell sx={{ fontWeight: 600, color: 'white' }}>Sr. No.</TableCell>
                                     <TableCell sx={{ fontWeight: 600, color: 'white' }}>Name</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {allocationBases.map((basis) => (
+                                {allocationBases.map((basis, index) => (
                                     <TableRow key={basis.id} hover>
-                                        <TableCell>{basis.id}</TableCell>
+                                        <TableCell>{index + 1}</TableCell>
                                         <TableCell>{basis.name}</TableCell>
                                     </TableRow>
                                 ))}

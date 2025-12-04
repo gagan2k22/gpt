@@ -1,22 +1,25 @@
 const express = require('express');
 const { authenticateToken } = require('../middleware/auth.middleware');
 const { checkPermission } = require('../middleware/permission.middleware');
-const { getPOs, getPOById, createPO, updatePO, updatePOStatus, getBudgetDetailsByUID } = require('../controllers/po.controller');
+const poController = require('../controllers/po.controller');
 
 const router = express.Router();
 
 router.use(authenticateToken);
 
-// View POs - All authenticated users
-router.get('/', checkPermission('VIEW_DASHBOARDS'), getPOs);
-router.get('/budget-details/:uid', checkPermission('VIEW_DASHBOARDS'), getBudgetDetailsByUID);
-router.get('/:id', checkPermission('VIEW_DASHBOARDS'), getPOById);
+// List POs
+router.get('/', checkPermission('VIEW_DASHBOARDS'), poController.listPOs);
 
-// Create/Edit PO - Editor, Approver, Admin
-router.post('/', checkPermission('CREATE_PO'), createPO);
-router.put('/:id', checkPermission('EDIT_PO'), updatePO);
+// Get PO details
+router.get('/:id', checkPermission('VIEW_DASHBOARDS'), poController.getPO);
 
-// Approve/Reject/Submit PO
-router.put('/:id/status', checkPermission('SUBMIT_PO'), updatePOStatus);
+// Create PO
+router.post('/', checkPermission('CREATE_LINE_ITEMS'), poController.createPO); // Using CREATE_LINE_ITEMS as proxy for PO creation
+
+// Update PO
+router.put('/:id', checkPermission('EDIT_LINE_ITEMS'), poController.updatePO);
+
+// Delete PO (Admin only)
+router.delete('/:id', checkPermission('Admin'), poController.deletePO);
 
 module.exports = router;

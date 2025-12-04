@@ -10,6 +10,12 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 import { excelTableStyles } from '../styles/excelTableStyles';
+import {
+    pageContainerStyles,
+    pageHeaderStyles,
+    pageTitleStyles,
+    pageTransitionStyles
+} from '../styles/commonStyles';
 import { useIsAdmin } from '../hooks/usePermissions';
 
 const POList = () => {
@@ -224,9 +230,9 @@ const POList = () => {
     }
 
     return (
-        <Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h5" sx={{ fontWeight: 600, color: 'primary.main' }}>
+        <Box sx={{ ...pageContainerStyles, ...pageTransitionStyles }}>
+            <Box sx={pageHeaderStyles}>
+                <Typography sx={pageTitleStyles}>
                     Purchase Order Tracker
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 1 }}>

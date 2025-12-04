@@ -42,6 +42,12 @@ import {
     Person as PersonIcon
 } from '@mui/icons-material';
 import axios from 'axios';
+import {
+    pageContainerStyles,
+    pageHeaderStyles,
+    pageTitleStyles,
+    pageTransitionStyles
+} from '../styles/commonStyles';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -185,13 +191,13 @@ const UserManagement = () => {
     };
 
     return (
-        <Box sx={{ p: 3 }}>
+        <Box sx={{ ...pageContainerStyles, ...pageTransitionStyles }}>
             {/* Header */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Box sx={pageHeaderStyles}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     <SecurityIcon sx={{ fontSize: 40, color: 'primary.main' }} />
                     <Box>
-                        <Typography variant="h4" fontWeight="bold">
+                        <Typography sx={pageTitleStyles}>
                             User Management
                         </Typography>
                         <Typography variant="body2" color="text.secondary">

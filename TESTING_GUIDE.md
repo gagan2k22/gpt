@@ -1,319 +1,449 @@
-# OPEX Management System - Testing & Troubleshooting Guide
+# OPEX Management System - Testing Guide
 
-## Overview
-This document provides comprehensive testing procedures and troubleshooting steps for the OPEX Management System.
+## 🧪 Comprehensive Testing Checklist
 
-## Recent Improvements
+This guide provides step-by-step testing procedures for all features in the OPEX Management System.
 
-### 1. Enhanced Error Handling
-- ✅ Added comprehensive try-catch blocks in all controllers
-- ✅ Implemented graceful shutdown handlers
-- ✅ Added request timeout middleware (30 seconds)
-- ✅ Enhanced CORS configuration
-- ✅ Added request body size limits (10MB)
-- ✅ Improved error logging with detailed context
-- ✅ Added specific error handlers for Prisma errors
+---
 
-### 2. Input Validation
-- ✅ Created validation middleware for all inputs
-- ✅ Added required field validation
-- ✅ Added type validation for numeric fields
-- ✅ Added foreign key existence checks
-- ✅ Added duplicate UID prevention
-- ✅ Added sanitization to prevent injection attacks
+## Prerequisites for Testing
 
-### 3. Database Stability
-- ✅ Implemented Prisma client singleton pattern
-- ✅ Added connection pooling
-- ✅ Added automatic reconnection on failure
-- ✅ Added database cleanup scripts
-- ✅ Added orphaned record detection and fixing
+- Backend running on `http://localhost:5000`
+- Frontend running on `http://localhost:5173`
+- Database initialized with schema
+- At least one user account (admin@example.com / admin123)
 
-### 4. Testing Infrastructure
-- ✅ Comprehensive database test suite
-- ✅ API endpoint test suite
-- ✅ Automated test runner
-- ✅ Database repair script
+---
 
-## Testing Procedures
+## Test Suite 1: Authentication & Authorization
 
-### Quick Test (Recommended)
-```bash
-# Run all tests automatically
-run_tests.bat
+### Test 1.1: Login
+- [ ] Navigate to `http://localhost:5173/login`
+- [ ] Enter valid credentials (admin@example.com / admin123)
+- [ ] Click "Sign In"
+- [ ] **Expected**: Redirected to Dashboard
+
+### Test 1.2: Invalid Login
+- [ ] Try logging in with wrong password
+- [ ] **Expected**: Error message displayed
+
+### Test 1.3: Role-Based Access
+- [ ] Login as Viewer
+- [ ] Try to create a PO
+- [ ] **Expected**: Permission denied or button disabled
+
+---
+
+## Test Suite 2: Budget Management
+
+### Test 2.1: View Budget List
+- [ ] Navigate to Budget Tracker
+- [ ] **Expected**: Table displays with columns (UID, Description, Tower, etc.)
+- [ ] Apply filters (Tower, Budget Head)
+- [ ] **Expected**: List filters correctly
+
+### Test 2.2: Budget Import (Dry Run)
+- [ ] Click "Import Budget" button
+- [ ] Upload sample Excel file
+- [ ] Click "Preview"
+- [ ] **Expected**: Preview shows accepted/rejected rows
+- [ ] Check for validation errors
+
+### Test 2.3: Budget Import (Commit)
+- [ ] After successful preview, click "Commit Import"
+- [ ] **Expected**: Success message
+- [ ] Refresh budget list
+- [ ] **Expected**: New budgets appear
+
+### Test 2.4: Budget Export
+- [ ] Click "Export to Excel" button
+- [ ] **Expected**: Excel file downloads
+- [ ] Open file and verify data matches screen
+
+### Test 2.5: Monthly Budget Editor
+- [ ] Click "Monthly Editor" button
+- [ ] **Expected**: Excel-like grid appears
+- [ ] Edit a monthly amount
+- [ ] Click "Save Changes"
+- [ ] **Expected**: Success message
+- [ ] Refresh and verify change persisted
+
+### Test 2.6: Budget Detail View
+- [ ] Click on a UID in the budget list
+- [ ] **Expected**: Detail page opens
+- [ ] Verify summary cards show correct totals
+- [ ] Check monthly variance chart displays
+- [ ] Switch between tabs (Monthly, POs, Actuals, Audit)
+
+### Test 2.7: Reconciliation Notes
+- [ ] In Budget Detail, go to Actuals tab
+- [ ] Click "Add Note" icon on an actual
+- [ ] Enter note text
+- [ ] Click "Save"
+- [ ] **Expected**: Note appears in list
+
+---
+
+## Test Suite 3: PO Management
+
+### Test 3.1: View PO List
+- [ ] Navigate to PO Tracker
+- [ ] **Expected**: Table displays with PO details
+- [ ] Apply filters
+- [ ] **Expected**: List filters correctly
+
+### Test 3.2: Create New PO
+- [ ] Click "+ New PO" button
+- [ ] Fill in required fields:
+  - PO Number: TEST-PO-001
+  - PO Date: Today's date
+  - Vendor: Select from dropdown
+  - Currency: INR
+  - PO Value: 100000
+- [ ] Click "Create PO"
+- [ ] **Expected**: Success message, redirected to PO list
+
+### Test 3.3: Link Line Items to PO
+- [ ] Create/Edit a PO
+- [ ] In "Link Line Items" section, search for a UID
+- [ ] Select a line item from dropdown
+- [ ] Enter allocated amount
+- [ ] Save PO
+- [ ] **Expected**: Line item linked successfully
+
+### Test 3.4: Edit Existing PO
+- [ ] Click edit icon on a PO
+- [ ] Modify PO value
+- [ ] Click "Update PO"
+- [ ] **Expected**: Changes saved
+- [ ] Verify in PO list
+
+### Test 3.5: Currency Conversion
+- [ ] Create PO with currency = USD
+- [ ] Enter PO Value: 1000
+- [ ] Enter Exchange Rate: 83
+- [ ] **Expected**: Common Currency Value shows ₹83,000
+
+---
+
+## Test Suite 4: Actuals Management
+
+### Test 4.1: View Actuals List
+- [ ] Navigate to Actuals Management
+- [ ] **Expected**: Table displays actuals
+- [ ] Filter by fiscal year and month
+- [ ] **Expected**: List filters correctly
+
+### Test 4.2: Actuals Import (Dry Run)
+- [ ] Click "Import Actuals" button
+- [ ] Upload sample Excel file with columns:
+  - Invoice No
+  - Invoice Date
+  - Amount
+  - UID (optional)
+  - Vendor (optional)
+- [ ] Click "Preview"
+- [ ] **Expected**: Preview shows accepted/rejected rows
+
+### Test 4.3: Actuals Import (Commit)
+- [ ] After successful preview, click "Commit Import"
+- [ ] **Expected**: Success message
+- [ ] Refresh actuals list
+- [ ] **Expected**: New actuals appear
+
+### Test 4.4: Month Auto-Assignment
+- [ ] Import an actual with Invoice Date: 2024-04-15
+- [ ] **Expected**: Month automatically set to "Apr"
+- [ ] Verify in actuals list
+
+---
+
+## Test Suite 5: Reports & Analytics
+
+### Test 5.1: Dashboard Metrics
+- [ ] Navigate to Dashboard
+- [ ] **Expected**: Four metric cards display:
+  - Total Budget
+  - Total Actuals
+  - Variance
+  - Budget Utilization %
+- [ ] Verify numbers are correct
+
+### Test 5.2: Tower-wise Chart
+- [ ] Check "Tower-wise Budget vs Actual" bar chart
+- [ ] **Expected**: Bars display for each tower
+- [ ] Hover over bars
+- [ ] **Expected**: Tooltip shows exact values
+
+### Test 5.3: Vendor-wise Chart
+- [ ] Check "Top 10 Vendors by Spend" chart
+- [ ] **Expected**: Horizontal bars show top vendors
+- [ ] Verify vendors are sorted by spend (descending)
+
+### Test 5.4: Monthly Trend
+- [ ] Check "Monthly Spend Trend" line chart
+- [ ] **Expected**: Line shows monthly actuals
+- [ ] Verify months are in correct order (Apr-Mar)
+
+### Test 5.5: Pie Chart
+- [ ] Check "Tower Budget Distribution" pie chart
+- [ ] **Expected**: Slices show percentage distribution
+- [ ] Verify percentages add up to 100%
+
+---
+
+## Test Suite 6: Import History & Audit
+
+### Test 6.1: View Import History
+- [ ] Navigate to Import History
+- [ ] **Expected**: Table shows all imports
+- [ ] Verify columns:
+  - Date
+  - Type (Budget/Actuals)
+  - Filename
+  - User
+  - Rows (Total/Accepted/Rejected)
+  - Status
+
+### Test 6.2: Import Status Indicators
+- [ ] Check status chips
+- [ ] **Expected**: 
+  - Completed = Green
+  - Failed = Red
+  - Pending = Gray
+
+### Test 6.3: User Attribution
+- [ ] Login as different users and perform imports
+- [ ] Check Import History
+- [ ] **Expected**: Each import shows correct user
+
+### Test 6.4: Audit Log in Budget Detail
+- [ ] Open any Budget Detail page
+- [ ] Go to "Audit Log" tab
+- [ ] **Expected**: Shows history of changes
+- [ ] Verify user and timestamp
+
+---
+
+## Test Suite 7: Master Data Management
+
+### Test 7.1: Add Tower
+- [ ] Navigate to Settings → Master Data
+- [ ] Go to "Towers" tab
+- [ ] Click "+ Add Tower"
+- [ ] Enter name: "Test Tower"
+- [ ] Click "Save"
+- [ ] **Expected**: Tower added to list
+
+### Test 7.2: Add Budget Head
+- [ ] Go to "Budget Heads" tab
+- [ ] Click "+ Add Budget Head"
+- [ ] Select Tower
+- [ ] Enter name
+- [ ] Save
+- [ ] **Expected**: Budget Head added
+
+### Test 7.3: Add Vendor
+- [ ] Go to "Vendors" tab
+- [ ] Click "+ Add Vendor"
+- [ ] Fill in details
+- [ ] Save
+- [ ] **Expected**: Vendor added
+
+### Test 7.4: Currency Rates
+- [ ] Go to "Currency Rates" tab
+- [ ] Add/Edit a rate (e.g., USD to INR = 83)
+- [ ] Save
+- [ ] **Expected**: Rate saved
+- [ ] Create PO with USD
+- [ ] **Expected**: Conversion uses saved rate
+
+---
+
+## Test Suite 8: User Management (Admin Only)
+
+### Test 8.1: View Users
+- [ ] Login as Admin
+- [ ] Navigate to User Management
+- [ ] **Expected**: Table shows all users
+
+### Test 8.2: Create User
+- [ ] Click "+ Add User"
+- [ ] Fill in details
+- [ ] Assign roles
+- [ ] Save
+- [ ] **Expected**: User created
+
+### Test 8.3: Edit User Roles
+- [ ] Click edit on a user
+- [ ] Change roles
+- [ ] Save
+- [ ] **Expected**: Roles updated
+- [ ] Login as that user
+- [ ] **Expected**: Permissions reflect new roles
+
+---
+
+## Test Suite 9: Navigation & UI
+
+### Test 9.1: Page Navigation
+- [ ] Click through all menu items
+- [ ] **Expected**: All pages load without errors
+
+### Test 9.2: Responsive Design
+- [ ] Resize browser window
+- [ ] **Expected**: Layout adjusts appropriately
+- [ ] Test on mobile viewport
+- [ ] **Expected**: Mobile-friendly display
+
+### Test 9.3: Loading States
+- [ ] Navigate to Dashboard
+- [ ] **Expected**: Loading spinner shows while data fetches
+- [ ] After load, spinner disappears
+
+### Test 9.4: Error Handling
+- [ ] Stop backend server
+- [ ] Try to load Dashboard
+- [ ] **Expected**: Error message displays
+- [ ] Restart backend
+- [ ] Refresh page
+- [ ] **Expected**: Data loads successfully
+
+---
+
+## Test Suite 10: Data Integrity
+
+### Test 10.1: Budget-Actual Linking
+- [ ] Import budget with UID: BUD-001
+- [ ] Import actual with UID: BUD-001
+- [ ] View Budget Detail for BUD-001
+- [ ] **Expected**: Actual appears in Actuals tab
+
+### Test 10.2: PO-Budget Linking
+- [ ] Create PO and link to budget line item
+- [ ] View Budget Detail
+- [ ] Go to "Linked POs" tab
+- [ ] **Expected**: PO appears in list
+
+### Test 10.3: Monthly Totals
+- [ ] Edit monthly budgets
+- [ ] **Expected**: Total budget updates automatically
+- [ ] Verify sum of months = total budget
+
+### Test 10.4: Variance Calculation
+- [ ] Budget: ₹100,000
+- [ ] Actuals: ₹80,000
+- [ ] **Expected**: Variance = ₹20,000 (positive)
+- [ ] **Expected**: Utilization = 80%
+
+---
+
+## Performance Tests
+
+### Test P1: Large Dataset Import
+- [ ] Import Excel with 1000+ rows
+- [ ] **Expected**: Completes within reasonable time (< 30 seconds)
+- [ ] No browser freeze
+
+### Test P2: Dashboard Load Time
+- [ ] Clear cache
+- [ ] Navigate to Dashboard
+- [ ] **Expected**: Loads within 2-3 seconds
+
+### Test P3: Filter Performance
+- [ ] Budget list with 500+ items
+- [ ] Apply multiple filters
+- [ ] **Expected**: Filters apply instantly (< 1 second)
+
+---
+
+## Security Tests
+
+### Test S1: Unauthorized Access
+- [ ] Logout
+- [ ] Try to access `/budgets` directly
+- [ ] **Expected**: Redirected to login
+
+### Test S2: Token Expiration
+- [ ] Login and wait for token to expire (if configured)
+- [ ] Try to perform an action
+- [ ] **Expected**: Redirected to login
+
+### Test S3: SQL Injection
+- [ ] Try entering SQL in search fields
+- [ ] **Expected**: No database errors, input sanitized
+
+---
+
+## Regression Tests
+
+After any code changes, run these critical paths:
+
+1. **Login → Dashboard → View Charts**
+2. **Budget Import → Preview → Commit → Verify in List**
+3. **Create PO → Link Line Item → Save → Verify in List**
+4. **Import Actuals → Verify in Budget Detail**
+5. **View Import History → Check Status**
+
+---
+
+## Bug Reporting Template
+
+If you find a bug, report it with:
+
+```
+**Bug Title**: [Brief description]
+
+**Steps to Reproduce**:
+1. 
+2. 
+3. 
+
+**Expected Result**: 
+
+**Actual Result**: 
+
+**Screenshots**: [If applicable]
+
+**Browser/Environment**: 
+
+**Error Messages**: [Console logs]
 ```
 
-### Manual Testing
+---
 
-#### 1. Database Tests
-```bash
-cd server
-node test_comprehensive.js
-```
+## Test Data Samples
 
-This will test:
-- Database connection
-- All Prisma models
-- Data integrity
-- Relationships
-- Unique constraints
-- Data validation
-- Orphaned records
+### Sample Budget Import Excel
 
-#### 2. Database Repair
-If database tests fail, run:
-```bash
-cd server
-node fix_database.js
-```
+Create an Excel file with these columns and data:
 
-This will:
-- Fix duplicate UIDs
-- Fix orphaned records
-- Validate and fix calculations
-- Ensure master data exists
-- Clean up invalid data
-- Optimize database
+| UID | Description | Tower | Budget Head | Apr | May | Jun | Jul | Aug | Sep | Oct | Nov | Dec | Jan | Feb | Mar | Total |
+|-----|-------------|-------|-------------|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-------|
+| BUD-001 | Software Licenses | IT | Software | 10000 | 10000 | 10000 | 10000 | 10000 | 10000 | 10000 | 10000 | 10000 | 10000 | 10000 | 10000 | 120000 |
+| BUD-002 | Hardware Maintenance | IT | Hardware | 5000 | 5000 | 5000 | 5000 | 5000 | 5000 | 5000 | 5000 | 5000 | 5000 | 5000 | 5000 | 60000 |
 
-#### 3. API Endpoint Tests
-**Note:** Server must be running first!
+### Sample Actuals Import Excel
 
-```bash
-# Terminal 1: Start server
-cd server
-npm run dev
+| Invoice No | Invoice Date | Amount | Currency | UID | Vendor |
+|------------|--------------|--------|----------|-----|--------|
+| INV-001 | 2024-04-15 | 5000 | INR | BUD-001 | Microsoft |
+| INV-002 | 2024-05-20 | 3000 | INR | BUD-002 | Dell |
 
-# Terminal 2: Run API tests
-cd server
-node test_api_endpoints.js
-```
+---
 
-This will test all API endpoints:
-- Authentication
-- Master Data (Towers, Budget Heads, Vendors, etc.)
-- Budgets
-- Line Items
-- Purchase Orders
-- Actuals
-- Fiscal Years
+## ✅ Sign-Off Checklist
 
-## Common Issues and Solutions
+Before declaring the system production-ready:
 
-### Issue 1: Server Crashes Frequently
+- [ ] All Test Suites passed
+- [ ] No critical bugs
+- [ ] Performance acceptable
+- [ ] Security tests passed
+- [ ] Documentation complete
+- [ ] User training completed
+- [ ] Backup procedures in place
 
-**Symptoms:**
-- Server stops unexpectedly
-- "Unhandled rejection" errors
-- Connection timeouts
+---
 
-**Solutions:**
-1. ✅ **FIXED**: Added graceful shutdown handlers
-2. ✅ **FIXED**: Added uncaught exception handlers
-3. ✅ **FIXED**: Added request timeouts
-4. ✅ **FIXED**: Enhanced error handling in all routes
-
-**Verification:**
-```bash
-# Check server logs for detailed error information
-# Errors now include timestamp, path, method, and stack trace
-```
-
-### Issue 2: Database Errors
-
-**Symptoms:**
-- "Unique constraint failed"
-- "Foreign key constraint failed"
-- "Record not found"
-
-**Solutions:**
-1. ✅ **FIXED**: Added duplicate checking before inserts
-2. ✅ **FIXED**: Added foreign key validation
-3. ✅ **FIXED**: Added specific Prisma error handlers
-
-**Verification:**
-```bash
-cd server
-node test_comprehensive.js
-```
-
-### Issue 3: Invalid Data Causing Crashes
-
-**Symptoms:**
-- Server crashes on certain API calls
-- "Cannot read property of undefined"
-- Type conversion errors
-
-**Solutions:**
-1. ✅ **FIXED**: Added input validation middleware
-2. ✅ **FIXED**: Added type checking for all numeric fields
-3. ✅ **FIXED**: Added required field validation
-4. ✅ **FIXED**: Added sanitization middleware
-
-**Verification:**
-```bash
-# Try sending invalid data to API endpoints
-# Should now return 400 Bad Request with detailed error messages
-```
-
-### Issue 4: Slow or Hanging Requests
-
-**Symptoms:**
-- Requests take too long
-- Server becomes unresponsive
-- Memory leaks
-
-**Solutions:**
-1. ✅ **FIXED**: Added 30-second request timeout
-2. ✅ **FIXED**: Implemented Prisma client singleton
-3. ✅ **FIXED**: Added connection cleanup on shutdown
-4. ✅ **FIXED**: Added database optimization script
-
-**Verification:**
-```bash
-# Monitor server memory usage
-# Check response times in API tests
-```
-
-## File Structure
-
-### New Files Created
-
-```
-server/
-├── test_comprehensive.js      # Database test suite
-├── test_api_endpoints.js      # API endpoint tests
-├── fix_database.js            # Database repair script
-└── src/
-    ├── middleware/
-    │   └── validation.js      # Input validation middleware
-    └── prisma.js              # Enhanced Prisma client (updated)
-
-run_tests.bat                  # Automated test runner
-TESTING_GUIDE.md              # This file
-```
-
-### Modified Files
-
-```
-server/src/
-├── app.js                     # Enhanced with error handling
-├── controllers/
-│   └── lineItem.controller.js # Added validation and error handling
-```
-
-## Best Practices
-
-### 1. Before Deploying Changes
-```bash
-# Always run tests before deploying
-run_tests.bat
-
-# Fix any issues
-cd server
-node fix_database.js
-
-# Re-run tests to verify
-node test_comprehensive.js
-```
-
-### 2. Regular Maintenance
-```bash
-# Weekly: Run database optimization
-cd server
-node fix_database.js
-
-# Monthly: Review error logs
-# Check for patterns in errors
-```
-
-### 3. Monitoring
-- Monitor server logs for errors
-- Check database size regularly
-- Review API response times
-- Monitor memory usage
-
-## Environment Variables
-
-Add these to your `.env` file for better control:
-
-```env
-# Server Configuration
-PORT=5000
-NODE_ENV=development
-
-# CORS Configuration
-CORS_ORIGIN=*
-
-# Database
-DATABASE_URL="file:./prisma/dev.db"
-
-# JWT
-JWT_SECRET=your_jwt_secret_here
-```
-
-## Performance Optimizations
-
-### Implemented:
-1. ✅ Request body size limits (10MB)
-2. ✅ Request timeouts (30 seconds)
-3. ✅ Database connection pooling
-4. ✅ Singleton Prisma client
-5. ✅ Rate limiting middleware (optional)
-
-### Recommended:
-1. Enable database query logging in development
-2. Use production-grade database (PostgreSQL) for production
-3. Implement caching for frequently accessed data
-4. Add database indexes for common queries
-
-## Troubleshooting Commands
-
-```bash
-# Check if server is running
-curl http://localhost:5000/health
-
-# Check database connection
-cd server
-node -e "const prisma = require('./src/prisma'); prisma.$connect().then(() => console.log('Connected')).catch(e => console.error(e))"
-
-# View database statistics
-cd server
-node -e "const prisma = require('./src/prisma'); prisma.user.count().then(c => console.log('Users:', c))"
-
-# Reset database (CAUTION: Deletes all data!)
-cd server
-npx prisma migrate reset
-
-# Regenerate Prisma client
-cd server
-npx prisma generate
-```
-
-## Support
-
-If issues persist after following this guide:
-
-1. Check server logs for detailed error messages
-2. Run `node test_comprehensive.js` for database diagnostics
-3. Run `node fix_database.js` to repair common issues
-4. Review the error details in the test output
-
-## Changelog
-
-### Version 1.1.0 (Current)
-- Added comprehensive error handling
-- Added input validation middleware
-- Added automated testing suite
-- Added database repair scripts
-- Enhanced Prisma client with singleton pattern
-- Added graceful shutdown handlers
-- Improved error logging
-- Added request timeouts
-- Enhanced CORS configuration
-
-### Version 1.0.0 (Initial)
-- Basic CRUD operations
-- Authentication
-- Master data management
-- Budget tracking
-- PO management
+**Happy Testing! 🎯**
